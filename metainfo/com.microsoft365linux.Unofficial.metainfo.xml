@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<component type="desktop">
+
+<id>
+com.microsoft365linux.Unofficial
+</id>
+
+
+<name>
+Microsoft 365 for Linux (Unofficial)
+</name>
+
+
+<summary>
+Microsoft 365 desktop experience with Copilot and OneDrive integration
+</summary>
+
+
+<description>
+
+<p>
+Microsoft 365 for Linux (Unofficial) is a community-developed application
+that provides a Linux desktop experience for Microsoft 365 services.
+</p>
+
+<p>
+Access Word, Excel, PowerPoint, Outlook, Microsoft Copilot and OneDrive
+using Microsoft official web services.
+</p>
+
+<p>
+This application is not developed, affiliated, endorsed or supported by
+Microsoft Corporation.
+</p>
+
+</description>
+
+
+<developer_name>
+Microsoft 365 for Linux Community
+</developer_name>
+
+
+<launchable type="desktop-id">
+com.microsoft365linux.Unofficial.desktop
+</launchable>
+
+
+<categories>
+<category>Office</category>
+</categories>
+
+
+</component>

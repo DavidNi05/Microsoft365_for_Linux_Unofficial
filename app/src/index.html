@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<meta charset="UTF-8">
+
+<title>
+Microsoft 365 for Linux (Unofficial)
+</title>
+
+
+<style>
+
+body {
+
+margin:0;
+font-family:Arial, sans-serif;
+background:#f3f6fb;
+
+}
+
+
+.header {
+
+background:#106ebe;
+color:white;
+padding:25px;
+
+}
+
+
+.header h1 {
+
+margin:0;
+
+}
+
+
+.container {
+
+display:grid;
+grid-template-columns:repeat(3,260px);
+gap:25px;
+padding:40px;
+
+}
+
+
+.card {
+
+background:white;
+border-radius:18px;
+padding:30px;
+text-align:center;
+font-size:22px;
+cursor:pointer;
+box-shadow:0 8px 20px rgba(0,0,0,.15);
+
+transition:.2s;
+
+}
+
+
+.card:hover {
+
+transform:translateY(-8px);
+
+}
+
+
+.icon {
+
+font-size:45px;
+
+}
+
+
+.footer {
+
+position:fixed;
+bottom:0;
+width:100%;
+background:#ddd;
+padding:10px;
+text-align:center;
+
+}
+
+
+</style>
+
+</head>
+
+
+<body>
+
+
+<div class="header">
+
+<h1>
+Microsoft 365 for Linux (Unofficial)
+</h1>
+
+<p>
+Your Microsoft 365 workspace on Linux
+</p>
+
+</div>
+
+
+<div class="container">
+
+
+<div class="card" onclick="openApp('https://word.cloud.microsoft')">
+
+<div class="icon">📘</div>
+
+Word
+
+</div>
+
+
+<div class="card" onclick="openApp('https://excel.cloud.microsoft')">
+
+<div class="icon">📊</div>
+
+Excel
+
+</div>
+
+
+<div class="card" onclick="openApp('https://powerpoint.cloud.microsoft')">
+
+<div class="icon">📽</div>
+
+PowerPoint
+
+</div>
+
+
+<div class="card" onclick="openApp('https://copilot.microsoft.com')">
+
+<div class="icon">🤖</div>
+
+Copilot
+
+</div>
+
+
+<div class="card" onclick="openApp('https://onedrive.live.com')">
+
+<div class="icon">☁</div>
+
+OneDrive
+
+</div>
+
+
+<div class="card" onclick="openApp('https://outlook.live.com')">
+
+<div class="icon">✉</div>
+
+Outlook
+
+</div>
+
+
+</div>
+
+
+<div class="footer">
+
+Microsoft 365 for Linux (Unofficial) - Community Project
+
+</div>
+
+
+<script>
+
+function openApp(url){
+
+window.electronAPI.openExternal(url);
+
+}
+
+</script>
+
+
+</body>
+
+</html>

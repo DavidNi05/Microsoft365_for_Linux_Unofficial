@@ -1,0 +1,508 @@
+        directory,
+        `${baseName} (M365 conflict ${timestamp})${extension}`
+    );
+}
+
+
+/*
+ * Called when a file outside OneDrive
+ * is imported into the M365 import folder.
+ */
+function registerExternalFile(
+    originalPath,
+    oneDrivePath,
+    copied
+) {
+
+    const absoluteOriginal =
+        path.resolve(
+            originalPath
+        );
+
+
+    const absoluteOneDrive =
+        path.resolve(
+            oneDrivePath
+        );
+
+
+    const id =
+        mappingId(
+            absoluteOriginal
+        );
+
+
+    const registry =
+        readRegistry();
+
+
+    const previous =
+        registry.mappings[
+            id
+        ] || null;
+
+
+    const oneDriveHash =
+        safeHashFile(
+            absoluteOneDrive
+        );
+
+
+    const originalHash =
+        safeHashFile(
+            absoluteOriginal
+        );
+
+
+    /*
+     * When we just copied the original into
+     * OneDrive, both hashes become the baseline.
+     *
+     * When the mapping already existed and we
+     * did not overwrite the OneDrive copy,
+     * preserve the previous baseline.
+     */
+    const baselineOneDriveHash =
+        (
+            !previous ||
+            copied
+        )
+            ? oneDriveHash
+            : previous.lastCopiedHash;
+
+
+    const baselineOriginalHash =
+        (
+            !previous ||
+            copied
+        )
+            ? originalHash
+            : (
+                previous.originalBaselineHash ||
+                originalHash
+            );
+
+
+    registry.mappings[
+        id
+    ] = {
+
+        id,
+
+        originalPath:
+            absoluteOriginal,
+
+        oneDrivePath:
+            absoluteOneDrive,
+
+        fileName:
+            path.basename(
+                absoluteOriginal
+            ),
+
+        registeredAt:
+            previous?.registeredAt ||
+            new Date()
+                .toISOString(),
+
+        updatedAt:
+            new Date()
+                .toISOString(),
+
+        /*
+         * Last known hash of the OneDrive copy
+         * after a successful registration/save-back.
+         */
+        lastCopiedHash:
+            baselineOneDriveHash,
+
+        /*
+         * Hash of the original file when the
+         * current edit session began.
+         */
+        originalBaselineHash:
+            baselineOriginalHash,
+
+        lastCopiedBackAt:
+            previous?.lastCopiedBackAt ||
+            null,
+
+        lastConflictAt:
+            previous?.lastConflictAt ||
+            null,
+
+        lastConflictPath:
+            previous?.lastConflictPath ||
+            null,
+
+        conflict:
+            false,
+
+        lastError:
+            null
+    };
+
+
+    writeRegistry(
+        registry
+    );
+
+
+    console.log(
+        "[External Sync] Registered:",
+        absoluteOneDrive,
+        "->",
+        absoluteOriginal
+    );
+
+
+    return registry.mappings[
+        id
+    ];
+}
+
+
+/*
+ * Copy modified OneDrive files back to
+ * their original locations.
+ *
+ * IMPORTANT:
+ * The original is overwritten only when it
+ * has not independently changed.
+ */
+function syncExternalCopiesBack() {
+
+    const registry =
+        readRegistry();
+
+
+    let registryChanged =
+        false;
+
+
+    for (
+        const [
+            id,
+            mapping
+        ]
+        of Object.entries(
+            registry.mappings
+        )
+    ) {
+
+        try {
+
+            /*
+             * The M365 working copy disappeared.
+             */
+            if (
+                !fs.existsSync(
+                    mapping.oneDrivePath
+                )
+            ) {
+
+                continue;
+            }
+
+
+            /*
+             * Do not recreate an original that the
+             * user intentionally deleted.
+             */
+            if (
+                !fs.existsSync(
+                    mapping.originalPath
+                )
+            ) {
+
+                mapping.lastError =
+                    "Original file no longer exists.";
+
+                mapping.updatedAt =
+                    new Date()
+                        .toISOString();
+
+                registryChanged =
+                    true;
+
+                continue;
+            }
+
+
+            const currentOneDriveHash =
+                hashFile(
+                    mapping.oneDrivePath
+                );
+
+
+            /*
+             * No new version from Office/OneDrive.
+             */
+            if (
+                currentOneDriveHash ===
+                mapping.lastCopiedHash
+            ) {
+
+                continue;
+            }
+
+
+            const currentOriginalHash =
+                hashFile(
+                    mapping.originalPath
+                );
+
+
+            const baselineOriginalHash =
+                mapping.originalBaselineHash ||
+                mapping.lastCopiedHash;
+
+
+            /*
+             * CONFLICT DETECTION
+             *
+             * The OneDrive version changed AND
+             * the original file also changed
+             * since the edit session started.
+             */
+            if (
+                baselineOriginalHash &&
+                currentOriginalHash !==
+                    baselineOriginalHash
+            ) {
+
+                const conflictPath =
+                    buildConflictPath(
+                        mapping.originalPath
+                    );
+
+
+                /*
+                 * Preserve the M365 version beside
+                 * the original instead of overwriting.
+                 */
+                fs.copyFileSync(
+                    mapping.oneDrivePath,
+                    conflictPath
+                );
+
+
+                mapping.conflict =
+                    true;
+
+
+                mapping.lastConflictAt =
+                    new Date()
+                        .toISOString();
+
+
+                mapping.lastConflictPath =
+                    conflictPath;
+
+
+                mapping.lastError =
+                    "Conflict detected: original file was modified locally. M365 version was saved as a separate conflict copy.";
+
+
+                /*
+                 * Mark this OneDrive version as seen so
+                 * we do not create conflict copies forever.
+                 */
+                mapping.lastCopiedHash =
+                    currentOneDriveHash;
+
+
+                mapping.updatedAt =
+                    new Date()
+                        .toISOString();
+
+
+                registryChanged =
+                    true;
+
+
+                console.warn(
+                    "[External Sync] CONFLICT:",
+                    mapping.originalPath
+                );
+
+
+                console.warn(
+                    "[External Sync] M365 version preserved as:",
+                    conflictPath
+                );
+
+
+                continue;
+            }
+
+
+            /*
+             * No conflict.
+             *
+             * Verify that Flatpak still has permission
+             * to overwrite the original file.
+             */
+            fs.accessSync(
+                mapping.originalPath,
+                fs.constants.W_OK
+            );
+
+
+            console.log(
+                "[External Sync] Saving back:",
+                mapping.oneDrivePath,
+                "->",
+                mapping.originalPath
+            );
+
+
+            /*
+             * Replace file contents while keeping the
+             * same original path and filename.
+             */
+            fs.copyFileSync(
+                mapping.oneDrivePath,
+                mapping.originalPath
+            );
+
+
+            /*
+             * Match source timestamps where possible.
+             */
+            try {
+
+                const sourceStat =
+                    fs.statSync(
+                        mapping.oneDrivePath
+                    );
+
+
+                fs.utimesSync(
+                    mapping.originalPath,
+                    sourceStat.atime,
+                    sourceStat.mtime
+                );
+
+
+            } catch (_) {}
+
+
+            /*
+             * The two copies are now identical again,
+             * so this becomes the new baseline.
+             */
+            const newOriginalHash =
+                hashFile(
+                    mapping.originalPath
+                );
+
+
+            mapping.lastCopiedHash =
+                currentOneDriveHash;
+
+
+            mapping.originalBaselineHash =
+                newOriginalHash;
+
+
+            mapping.lastCopiedBackAt =
+                new Date()
+                    .toISOString();
+
+
+            mapping.updatedAt =
+                new Date()
+                    .toISOString();
+
+
+            mapping.conflict =
+                false;
+
+
+            mapping.lastConflictAt =
+                null;
+
+
+            mapping.lastConflictPath =
+                null;
+
+
+            mapping.lastError =
+                null;
+
+
+            registryChanged =
+                true;
+
+
+            console.log(
+                "[External Sync] Original file updated successfully:",
+                mapping.originalPath
+            );
+
+
+        } catch (
+            error
+        ) {
+
+            mapping.lastError =
+                error.message;
+
+
+            mapping.updatedAt =
+                new Date()
+                    .toISOString();
+
+
+            registryChanged =
+                true;
+
+
+            console.error(
+                "[External Sync] Unable to update original:",
+                mapping.originalPath,
+                error.message
+            );
+        }
+    }
+
+
+    if (
+        registryChanged
+    ) {
+
+        writeRegistry(
+            registry
+        );
+    }
+}
+
+
+function getConflictMappings() {
+
+    const registry =
+        readRegistry();
+
+
+    return Object
+        .values(
+            registry.mappings
+        )
+        .filter(
+            mapping =>
+                mapping.conflict
+        );
+}
+
+
+module.exports = {
+
+    registerExternalFile,
+
+    syncExternalCopiesBack,
+
+    getConflictMappings,
+
+    registryFile
+};

@@ -1,0 +1,19 @@
+name: onedrive
+
+buildsystem: simple
+
+build-options:
+  append-path: /app/ldc/bin
+  append-ld-library-path: /app/ldc/lib
+  env:
+    DC: ldc2
+
+build-commands:
+  - ./configure --prefix=/app
+  - make -j${FLATPAK_BUILDER_N_JOBS}
+  - make install
+
+sources:
+  - type: git
+    url: https://github.com/abraunegg/onedrive.git
+    tag: v2.5.11

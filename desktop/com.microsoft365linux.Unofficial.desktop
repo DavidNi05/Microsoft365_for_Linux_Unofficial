@@ -1,0 +1,17 @@
+[Desktop Entry]
+Type=Application
+Name=Microsoft 365 for Linux (Unofficial)
+GenericName=Microsoft 365 Client
+Comment=Unofficial Microsoft 365 desktop integration for Linux
+
+Exec=m365-linux %F
+
+Icon=com.microsoft365linux.Unofficial
+
+Terminal=false
+StartupNotify=true
+
+Categories=Office;Network;
+MimeType=application/msword;application/vnd.openxmlformats-officedocument.wordprocessingml.document;application/vnd.ms-excel;application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;application/vnd.ms-powerpoint;application/vnd.openxmlformats-officedocument.presentationml.presentation;
+
+StartupWMClass=Microsoft 365 for Linux (Unofficial)

@@ -1,0 +1,13 @@
+node_modules/
+.flatpak-builder/
+build-dir/
+repo/
+*.flatpak
+*.tar.gz
+*.zip
+*.tar.xz
+codigo_completo_flatpak.txt
+*.tmp
+*.atomic-tmp
+*.log
+.DS_Store

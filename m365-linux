@@ -1,0 +1,12 @@
+#!/bin/bash
+
+APPDIR="/app/share/microsoft365/src"
+ELECTRON="$APPDIR/node_modules/electron/dist/electron"
+
+export ELECTRON_DISABLE_SECURITY_WARNINGS=true
+
+if [ "$1" = "--background" ]; then
+    exec "$ELECTRON" "$APPDIR" --background --no-sandbox
+else
+    exec "$ELECTRON" "$APPDIR" --no-sandbox "$@"
+fi

@@ -1,0 +1,13 @@
+name: ldc
+
+buildsystem: simple
+
+build-commands:
+  - mkdir -p /app/ldc
+  - cp -a . /app/ldc/
+
+sources:
+  - type: archive
+    url: https://github.com/ldc-developers/ldc/releases/download/v1.40.1/ldc2-1.40.1-linux-x86_64.tar.xz
+    sha256: 085a593dba4b1385ec03e7521aa97356e5a7d9f6194303eccb3c1e35935c69d8
+    strip-components: 1

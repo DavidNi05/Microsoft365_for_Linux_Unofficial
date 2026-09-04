@@ -1,0 +1,4280 @@
+const fs = require("fs"); 
+
+const path = require("path"); 
+
+const os = require("os"); 
+
+const crypto = require("crypto"); 
+
+ 
+
+ 
+
+const configBase = 
+
+    process.env.XDG_CONFIG_HOME || 
+
+    path.join( 
+
+        os.homedir(), 
+
+        ".config" 
+
+    ); 
+
+ 
+
+ 
+
+const registryDirectory = 
+
+    path.join( 
+
+        configBase, 
+
+        "onedrive" 
+
+    ); 
+
+ 
+
+ 
+
+const registryFile = 
+
+    path.join( 
+
+        registryDirectory, 
+
+        "m365-external-files.json" 
+
+    ); 
+
+ 
+
+ 
+
+const SAFE_BACKUP_PATTERN = 
+
+    /-safeBackup-\d+/i; 
+
+ 
+
+ 
+
+/* 
+
+ * Wait this long after the latest detected 
+
+ * OneDrive change before performing Save-Back. 
+
+ */ 
+
+const STABILITY_DELAY_MS = 
+
+    10000; 
+
+ 
+
+ 
+
+/* 
+
+ * Runtime-only state. 
+
+ * 
+
+ * One timer per managed external document. 
+
+ */ 
+
+const pendingSaveBack = 
+
+    new Map(); 
+
+ 
+
+ 
+
+/* 
+
+ * Optional status callback supplied by 
+
+ * onedrive-manager.js. 
+
+ */ 
+
+let statusReporter = 
+
+    null; 
+
+ 
+
+ 
+
+function setStatusReporter( 
+
+    reporter 
+
+) { 
+
+ 
+
+    statusReporter = 
+
+        typeof reporter === "function" 
+
+            ? reporter 
+
+            : null; 
+
+} 
+
+ 
+
+ 
+
+function reportStatus( 
+
+    status, 
+
+    details = {} 
+
+) { 
+
+ 
+
+    if ( 
+
+        statusReporter 
+
+    ) { 
+
+ 
+
+        try { 
+
+ 
+
+            statusReporter( 
+
+                status, 
+
+                details 
+
+            ); 
+
+ 
+
+        } catch ( 
+
+            error 
+
+        ) { 
+
+ 
+
+            console.error( 
+
+                "[External Sync] Status reporter failed:", 
+
+                error 
+
+            ); 
+
+        } 
+
+    } 
+
+} 
+
+ 
+
+ 
+
+function ensureRegistryDirectory() { 
+
+ 
+
+    fs.mkdirSync( 
+
+        registryDirectory, 
+
+        { 
+
+            recursive: true, 
+
+            mode: 0o700 
+
+        } 
+
+    ); 
+
+} 
+
+ 
+
+ 
+
+function emptyRegistry() { 
+
+ 
+
+    return { 
+
+        version: 4, 
+
+        mappings: {} 
+
+    }; 
+
+} 
+
+ 
+
+ 
+
+function readRegistry() { 
+
+ 
+
+    ensureRegistryDirectory(); 
+
+ 
+
+ 
+
+    try { 
+
+ 
+
+        if ( 
+
+            !fs.existsSync( 
+
+                registryFile 
+
+            ) 
+
+        ) { 
+
+ 
+
+            return emptyRegistry(); 
+
+        } 
+
+ 
+
+ 
+
+        const data = 
+
+            JSON.parse( 
+
+                fs.readFileSync( 
+
+                    registryFile, 
+
+                    "utf8" 
+
+                ) 
+
+            ); 
+
+ 
+
+ 
+
+        if ( 
+
+            !data || 
+
+            typeof data !== "object" || 
+
+            !data.mappings 
+
+        ) { 
+
+ 
+
+            return emptyRegistry(); 
+
+        } 
+
+ 
+
+ 
+
+        data.version = 
+
+            4; 
+
+ 
+
+ 
+
+        return data; 
+
+ 
+
+ 
+
+    } catch ( 
+
+        error 
+
+    ) { 
+
+ 
+
+        console.error( 
+
+            "[External Sync] Unable to read registry:", 
+
+            error 
+
+        ); 
+
+ 
+
+ 
+
+        return emptyRegistry(); 
+
+    } 
+
+} 
+
+ 
+
+ 
+
+function writeRegistry( 
+
+    registry 
+
+) { 
+
+ 
+
+    ensureRegistryDirectory(); 
+
+ 
+
+ 
+
+    const temporary = 
+
+        registryFile + 
+
+        ".tmp"; 
+
+ 
+
+ 
+
+    fs.writeFileSync( 
+
+        temporary, 
+
+        JSON.stringify( 
+
+            registry, 
+
+            null, 
+
+            2 
+
+        ), 
+
+        { 
+
+            encoding: "utf8", 
+
+            mode: 0o600 
+
+        } 
+
+    ); 
+
+ 
+
+ 
+
+    fs.renameSync( 
+
+        temporary, 
+
+        registryFile 
+
+    ); 
+
+} 
+
+ 
+
+ 
+
+function hashFile( 
+
+    filePath 
+
+) { 
+
+ 
+
+    const hash = 
+
+        crypto.createHash( 
+
+            "sha256" 
+
+        ); 
+
+ 
+
+ 
+
+    const fd = 
+
+        fs.openSync( 
+
+            filePath, 
+
+            "r" 
+
+        ); 
+
+ 
+
+ 
+
+    const buffer = 
+
+        Buffer.alloc( 
+
+            1024 * 1024 
+
+        ); 
+
+ 
+
+ 
+
+    try { 
+
+ 
+
+        let bytesRead = 
+
+            0; 
+
+ 
+
+ 
+
+        do { 
+
+ 
+
+            bytesRead = 
+
+                fs.readSync( 
+
+                    fd, 
+
+                    buffer, 
+
+                    0, 
+
+                    buffer.length, 
+
+                    null 
+
+                ); 
+
+ 
+
+ 
+
+            if ( 
+
+                bytesRead > 0 
+
+            ) { 
+
+ 
+
+                hash.update( 
+
+                    buffer.subarray( 
+
+                        0, 
+
+                        bytesRead 
+
+                    ) 
+
+                ); 
+
+            } 
+
+ 
+
+ 
+
+        } while ( 
+
+            bytesRead > 0 
+
+        ); 
+
+ 
+
+ 
+
+    } finally { 
+
+ 
+
+        fs.closeSync( 
+
+            fd 
+
+        ); 
+
+    } 
+
+ 
+
+ 
+
+    return hash.digest( 
+
+        "hex" 
+
+    ); 
+
+} 
+
+ 
+
+ 
+
+function safeHashFile( 
+
+    filePath 
+
+) { 
+
+ 
+
+    try { 
+
+ 
+
+        if ( 
+
+            !fs.existsSync( 
+
+                filePath 
+
+            ) 
+
+        ) { 
+
+ 
+
+            return null; 
+
+        } 
+
+ 
+
+ 
+
+        return hashFile( 
+
+            filePath 
+
+        ); 
+
+ 
+
+ 
+
+    } catch (_) { 
+
+ 
+
+        return null; 
+
+    } 
+
+} 
+
+ 
+
+ 
+
+function mappingId( 
+
+    originalPath 
+
+) { 
+
+ 
+
+    return crypto 
+
+        .createHash( 
+
+            "sha256" 
+
+        ) 
+
+        .update( 
+
+            path.resolve( 
+
+                originalPath 
+
+            ) 
+
+        ) 
+
+        .digest( 
+
+            "hex" 
+
+        ) 
+
+        .slice( 
+
+            0, 
+
+            24 
+
+        ); 
+
+} 
+
+ 
+
+ 
+
+function buildConflictPath( 
+
+    originalPath 
+
+) { 
+
+ 
+
+/* 
+
+ * Build a collision-safe filename when a cloud rename 
+
+ * would overwrite an unrelated local file. 
+
+ */ 
+
+function buildManualCollisionPath( 
+
+    desiredPath 
+
+) { 
+
+ 
+
+    const directory = 
+
+        path.dirname( 
+
+            desiredPath 
+
+        ); 
+
+ 
+
+ 
+
+    const extension = 
+
+        path.extname( 
+
+            desiredPath 
+
+        ); 
+
+ 
+
+ 
+
+    const baseName = 
+
+        path.basename( 
+
+            desiredPath, 
+
+            extension 
+
+        ); 
+
+ 
+
+ 
+
+    const timestamp = 
+
+        new Date() 
+
+            .toISOString() 
+
+            .replace( 
+
+                /[:.]/g, 
+
+                "-" 
+
+            ); 
+
+ 
+
+ 
+
+    return path.join( 
+
+        directory, 
+
+        `${baseName} (M365 saved copy ${timestamp})${extension}` 
+
+    ); 
+
+} 
+
+ 
+
+ 
+
+/* 
+
+ * Atomically replace a local file with the current 
+
+ * managed OneDrive copy. 
+
+ * 
+
+ * A temporary file is created in the same directory 
+
+ * so the final rename stays on the same filesystem. 
+
+ */ 
+
+function atomicCopyToLocal( 
+
+    sourcePath, 
+
+    destinationPath 
+
+) { 
+
+ 
+
+    const directory = 
+
+        path.dirname( 
+
+            destinationPath 
+
+        ); 
+
+ 
+
+ 
+
+    const temporaryPath = 
+
+        path.join( 
+
+            directory, 
+
+            `.${path.basename(destinationPath)}.m365-${process.pid}-${Date.now()}.tmp` 
+
+        ); 
+
+ 
+
+ 
+
+    let originalMode = 
+
+        null; 
+
+ 
+
+ 
+
+    try { 
+
+ 
+
+        if ( 
+
+            fs.existsSync( 
+
+                destinationPath 
+
+            ) 
+
+        ) { 
+
+ 
+
+            originalMode = 
+
+                fs.statSync( 
+
+                    destinationPath 
+
+                ).mode; 
+
+        } 
+
+ 
+
+ 
+
+        fs.copyFileSync( 
+
+            sourcePath, 
+
+            temporaryPath 
+
+        ); 
+
+ 
+
+ 
+
+        if ( 
+
+            originalMode !== null 
+
+        ) { 
+
+ 
+
+            try { 
+
+ 
+
+                fs.chmodSync( 
+
+                    temporaryPath, 
+
+                    originalMode 
+
+                ); 
+
+ 
+
+            } catch (_) {} 
+
+        } 
+
+ 
+
+ 
+
+        fs.renameSync( 
+
+            temporaryPath, 
+
+            destinationPath 
+
+        ); 
+
+ 
+
+ 
+
+    } catch ( 
+
+        error 
+
+    ) { 
+
+ 
+
+        try { 
+
+ 
+
+            fs.rmSync( 
+
+                temporaryPath, 
+
+                { 
+
+                    force: true 
+
+                } 
+
+            ); 
+
+ 
+
+        } catch (_) {} 
+
+ 
+
+ 
+
+        throw error; 
+
+    } 
+
+} 
+
+ 
+
+ 
+
+/* 
+
+ * Move the mapping to a new registry key when the 
+
+ * original local file itself has been renamed. 
+
+ * 
+
+ * mappingId() is based on originalPath, therefore 
+
+ * the registry key must also change. 
+
+ */ 
+
+function rekeyMapping( 
+
+    registry, 
+
+    oldId, 
+
+    mapping, 
+
+    newOriginalPath 
+
+) { 
+
+ 
+
+    const absoluteNewPath = 
+
+        path.resolve( 
+
+            newOriginalPath 
+
+        ); 
+
+ 
+
+ 
+
+    const newId = 
+
+        mappingId( 
+
+            absoluteNewPath 
+
+        ); 
+
+ 
+
+ 
+
+    delete registry.mappings[ 
+
+        oldId 
+
+    ]; 
+
+ 
+
+ 
+
+    mapping.id = 
+
+        newId; 
+
+ 
+
+ 
+
+    mapping.originalPath = 
+
+        absoluteNewPath; 
+
+ 
+
+ 
+
+    mapping.updatedAt = 
+
+        new Date() 
+
+            .toISOString(); 
+
+ 
+
+ 
+
+    registry.mappings[ 
+
+        newId 
+
+    ] = 
+
+        mapping; 
+
+ 
+
+ 
+
+    return newId; 
+
+} 
+
+ 
+
+ 
+
+/* 
+
+ * ================================================== 
+
+ * MANUAL SAVE LOCAL 
+
+ * ================================================== 
+
+ * 
+
+ * Explicitly requested by the user through the 💾 
+
+ * button in the Microsoft 365 toolbar. 
+
+ * 
+
+ * Unlike automatic Save-Back, this operation is also 
+
+ * allowed to propagate an Office Web rename to the 
+
+ * original file on disk. 
+
+ */ 
+
+function saveLocalNow( 
+
+    originalPath 
+
+) { 
+
+ 
+
+    const absoluteOriginal = 
+
+        path.resolve( 
+
+            originalPath 
+
+        ); 
+
+ 
+
+ 
+
+    const registry = 
+
+        readRegistry(); 
+
+ 
+
+ 
+
+    let id = 
+
+        mappingId( 
+
+            absoluteOriginal 
+
+        ); 
+
+ 
+
+ 
+
+    let mapping = 
+
+        registry.mappings[ 
+
+            id 
+
+        ] || null; 
+
+ 
+
+ 
+
+    if ( 
+
+        !mapping 
+
+    ) { 
+
+ 
+
+        return { 
+
+ 
+
+            ok: 
+
+                false, 
+
+ 
+
+            error: 
+
+                "This file is not registered as a Microsoft 365 managed external file." 
+
+        }; 
+
+    } 
+
+ 
+
+ 
+
+    try { 
+
+ 
+
+        /* 
+
+         * First repair a stale OneDrive path if the 
+
+         * document was renamed in Word/Excel/PowerPoint. 
+
+         */ 
+
+        if ( 
+
+            updateRenamedWorkingFile( 
+
+                mapping 
+
+            ) 
+
+        ) { 
+
+ 
+
+            registry.mappings[ 
+
+                id 
+
+            ] = 
+
+                mapping; 
+
+ 
+
+ 
+
+            writeRegistry( 
+
+                registry 
+
+            ); 
+
+        } 
+
+ 
+
+ 
+
+        if ( 
+
+            !fs.existsSync( 
+
+                mapping.oneDrivePath 
+
+            ) 
+
+        ) { 
+
+ 
+
+            throw new Error( 
+
+                "The managed OneDrive copy is not available." 
+
+            ); 
+
+        } 
+
+ 
+
+ 
+
+        if ( 
+
+            !fs.existsSync( 
+
+                mapping.originalPath 
+
+            ) 
+
+        ) { 
+
+ 
+
+            throw new Error( 
+
+                "The original local file no longer exists." 
+
+            ); 
+
+        } 
+
+ 
+
+ 
+
+        const oldOriginalPath = 
+
+            mapping.originalPath; 
+
+ 
+
+ 
+
+        const originalDirectory = 
+
+            path.dirname( 
+
+                oldOriginalPath 
+
+            ); 
+
+ 
+
+ 
+
+        /* 
+
+         * The current OneDrive filename represents the 
+
+         * latest filename selected in Microsoft 365. 
+
+         */ 
+
+        const cloudFileName = 
+
+            path.basename( 
+
+                mapping.oneDrivePath 
+
+            ); 
+
+ 
+
+ 
+
+        const originalFileName = 
+
+            path.basename( 
+
+                oldOriginalPath 
+
+            ); 
+
+ 
+
+ 
+
+        const renamed = 
+
+            cloudFileName !== 
+
+            originalFileName; 
+
+ 
+
+ 
+
+        /* 
+
+         * -------------------------------------------------- 
+
+         * CASE 1 
+
+         * Filename did not change. 
+
+         * -------------------------------------------------- 
+
+         */ 
+
+        if ( 
+
+            !renamed 
+
+        ) { 
+
+ 
+
+            atomicCopyToLocal( 
+
+                mapping.oneDrivePath, 
+
+                oldOriginalPath 
+
+            ); 
+
+ 
+
+ 
+
+            const currentHash = 
+
+                hashFile( 
+
+                    mapping.oneDrivePath 
+
+                ); 
+
+ 
+
+ 
+
+            const localHash = 
+
+                hashFile( 
+
+                    oldOriginalPath 
+
+                ); 
+
+ 
+
+ 
+
+            mapping.lastCopiedHash = 
+
+                currentHash; 
+
+ 
+
+ 
+
+            mapping.originalBaselineHash = 
+
+                localHash; 
+
+ 
+
+ 
+
+            mapping.lastCopiedBackAt = 
+
+                new Date() 
+
+                    .toISOString(); 
+
+ 
+
+ 
+
+            mapping.updatedAt = 
+
+                new Date() 
+
+                    .toISOString(); 
+
+ 
+
+ 
+
+            mapping.conflict = 
+
+                false; 
+
+ 
+
+ 
+
+            mapping.lastError = 
+
+                null; 
+
+ 
+
+ 
+
+            registry.mappings[ 
+
+                id 
+
+            ] = 
+
+                mapping; 
+
+ 
+
+ 
+
+            writeRegistry( 
+
+                registry 
+
+            ); 
+
+ 
+
+ 
+
+            console.log( 
+
+                "[Manual Save Local] Saved:", 
+
+                mapping.oneDrivePath, 
+
+                "->", 
+
+                oldOriginalPath 
+
+            ); 
+
+ 
+
+ 
+
+            return { 
+
+ 
+
+                ok: 
+
+                    true, 
+
+ 
+
+                renamed: 
+
+                    false, 
+
+ 
+
+                collision: 
+
+                    false, 
+
+ 
+
+                fileName: 
+
+                    originalFileName, 
+
+ 
+
+                previousFileName: 
+
+                    originalFileName, 
+
+ 
+
+                originalPath: 
+
+                    oldOriginalPath, 
+
+ 
+
+                savedPath: 
+
+                    oldOriginalPath, 
+
+ 
+
+                message: 
+
+                    `${originalFileName} was saved to its original location.` 
+
+            }; 
+
+        } 
+
+ 
+
+ 
+
+        /* 
+
+         * -------------------------------------------------- 
+
+         * CASE 2 
+
+         * Microsoft 365 renamed the document. 
+
+         * -------------------------------------------------- 
+
+         */ 
+
+        const desiredPath = 
+
+            path.join( 
+
+                originalDirectory, 
+
+                cloudFileName 
+
+            ); 
+
+ 
+
+ 
+
+        /* 
+
+         * Protect unrelated local files from overwrite. 
+
+         */ 
+
+        if ( 
+
+            fs.existsSync( 
+
+                desiredPath 
+
+            ) && 
+
+            path.resolve( 
+
+                desiredPath 
+
+            ) !== 
+
+            path.resolve( 
+
+                oldOriginalPath 
+
+            ) 
+
+        ) { 
+
+ 
+
+            const protectedPath = 
+
+                buildManualCollisionPath( 
+
+                    desiredPath 
+
+                ); 
+
+ 
+
+ 
+
+            fs.copyFileSync( 
+
+                mapping.oneDrivePath, 
+
+                protectedPath 
+
+            ); 
+
+ 
+
+ 
+
+            console.warn( 
+
+                "[Manual Save Local] Name collision:", 
+
+                desiredPath 
+
+            ); 
+
+ 
+
+ 
+
+            console.warn( 
+
+                "[Manual Save Local] Saved separately:", 
+
+                protectedPath 
+
+            ); 
+
+ 
+
+ 
+
+            return { 
+
+ 
+
+                ok: 
+
+                    true, 
+
+ 
+
+                renamed: 
+
+                    true, 
+
+ 
+
+                collision: 
+
+                    true, 
+
+ 
+
+                fileName: 
+
+                    path.basename( 
+
+                        protectedPath 
+
+                    ), 
+
+ 
+
+                requestedFileName: 
+
+                    cloudFileName, 
+
+ 
+
+                previousFileName: 
+
+                    originalFileName, 
+
+ 
+
+                originalPath: 
+
+                    oldOriginalPath, 
+
+ 
+
+                savedPath: 
+
+                    protectedPath, 
+
+ 
+
+                message: 
+
+                    `A file named ${cloudFileName} already exists. The Microsoft 365 version was saved as ${path.basename(protectedPath)} to prevent data loss.` 
+
+            }; 
+
+        } 
+
+ 
+
+ 
+
+        /* 
+
+         * -------------------------------------------------- 
+
+         * Safe rename transaction. 
+
+         * 
+
+         * 1. Create the new M365 version in a temporary file. 
+
+         * 2. Move the old original to a rollback file. 
+
+         * 3. Put the new version under the new cloud name. 
+
+         * 4. Remove rollback only after success. 
+
+         * -------------------------------------------------- 
+
+         */ 
+
+ 
+
+        const temporaryPath = 
+
+            path.join( 
+
+                originalDirectory, 
+
+                `.${cloudFileName}.m365-new-${process.pid}-${Date.now()}.tmp` 
+
+            ); 
+
+ 
+
+ 
+
+        const rollbackPath = 
+
+            path.join( 
+
+                originalDirectory, 
+
+                `.${originalFileName}.m365-rollback-${process.pid}-${Date.now()}` 
+
+            ); 
+
+ 
+
+ 
+
+        let oldMoved = 
+
+            false; 
+
+ 
+
+ 
+
+        try { 
+
+ 
+
+            fs.copyFileSync( 
+
+                mapping.oneDrivePath, 
+
+                temporaryPath 
+
+            ); 
+
+ 
+
+ 
+
+            try { 
+
+ 
+
+                const originalMode = 
+
+                    fs.statSync( 
+
+                        oldOriginalPath 
+
+                    ).mode; 
+
+ 
+
+ 
+
+                fs.chmodSync( 
+
+                    temporaryPath, 
+
+                    originalMode 
+
+                ); 
+
+ 
+
+            } catch (_) {} 
+
+ 
+
+ 
+
+            fs.renameSync( 
+
+                oldOriginalPath, 
+
+                rollbackPath 
+
+            ); 
+
+ 
+
+ 
+
+            oldMoved = 
+
+                true; 
+
+ 
+
+ 
+
+            fs.renameSync( 
+
+                temporaryPath, 
+
+                desiredPath 
+
+            ); 
+
+ 
+
+ 
+
+            fs.rmSync( 
+
+                rollbackPath, 
+
+                { 
+
+                    force: true 
+
+                } 
+
+            ); 
+
+ 
+
+ 
+
+            oldMoved = 
+
+                false; 
+
+ 
+
+ 
+
+        } catch ( 
+
+            error 
+
+        ) { 
+
+ 
+
+            /* 
+
+             * Roll back whenever possible. 
+
+             */ 
+
+            try { 
+
+ 
+
+                fs.rmSync( 
+
+                    temporaryPath, 
+
+                    { 
+
+                        force: true 
+
+                    } 
+
+                ); 
+
+ 
+
+            } catch (_) {} 
+
+ 
+
+ 
+
+            if ( 
+
+                oldMoved && 
+
+                fs.existsSync( 
+
+                    rollbackPath 
+
+                ) && 
+
+                !fs.existsSync( 
+
+                    oldOriginalPath 
+
+                ) 
+
+            ) { 
+
+ 
+
+                try { 
+
+ 
+
+                    fs.renameSync( 
+
+                        rollbackPath, 
+
+                        oldOriginalPath 
+
+                    ); 
+
+ 
+
+                } catch ( 
+
+                    rollbackError 
+
+                ) { 
+
+ 
+
+                    console.error( 
+
+                        "[Manual Save Local] Rollback failed:", 
+
+                        rollbackError 
+
+                    ); 
+
+                } 
+
+            } 
+
+ 
+
+ 
+
+            throw error; 
+
+        } 
+
+ 
+
+ 
+
+        /* 
+
+         * Re-key the registry because originalPath changed. 
+
+         */ 
+
+        id = 
+
+            rekeyMapping( 
+
+                registry, 
+
+                id, 
+
+                mapping, 
+
+                desiredPath 
+
+            ); 
+
+ 
+
+ 
+
+        mapping = 
+
+            registry.mappings[ 
+
+                id 
+
+            ]; 
+
+ 
+
+ 
+
+        const cloudHash = 
+
+            hashFile( 
+
+                mapping.oneDrivePath 
+
+            ); 
+
+ 
+
+ 
+
+        const localHash = 
+
+            hashFile( 
+
+                desiredPath 
+
+            ); 
+
+ 
+
+ 
+
+        mapping.lastCopiedHash = 
+
+            cloudHash; 
+
+ 
+
+ 
+
+        mapping.originalBaselineHash = 
+
+            localHash; 
+
+ 
+
+ 
+
+        mapping.lastCopiedBackAt = 
+
+            new Date() 
+
+                .toISOString(); 
+
+ 
+
+ 
+
+        mapping.updatedAt = 
+
+            new Date() 
+
+                .toISOString(); 
+
+ 
+
+ 
+
+        mapping.conflict = 
+
+            false; 
+
+ 
+
+ 
+
+        mapping.lastError = 
+
+            null; 
+
+ 
+
+ 
+
+        /* 
+
+         * The managed OneDrive filename and local 
+
+         * filename are now intentionally aligned. 
+
+         */ 
+
+        mapping.fileName = 
+
+            cloudFileName; 
+
+ 
+
+ 
+
+        registry.mappings[ 
+
+            id 
+
+        ] = 
+
+            mapping; 
+
+ 
+
+ 
+
+        writeRegistry( 
+
+            registry 
+
+        ); 
+
+ 
+
+ 
+
+        console.log( 
+
+            "[Manual Save Local] Renamed and saved:" 
+
+        ); 
+
+ 
+
+ 
+
+        console.log( 
+
+            "  From:", 
+
+            oldOriginalPath 
+
+        ); 
+
+ 
+
+ 
+
+        console.log( 
+
+            "  To:", 
+
+            desiredPath 
+
+        ); 
+
+ 
+
+ 
+
+        return { 
+
+ 
+
+            ok: 
+
+                true, 
+
+ 
+
+            renamed: 
+
+                true, 
+
+ 
+
+            collision: 
+
+                false, 
+
+ 
+
+            fileName: 
+
+                cloudFileName, 
+
+ 
+
+            previousFileName: 
+
+                originalFileName, 
+
+ 
+
+            originalPath: 
+
+                desiredPath, 
+
+ 
+
+            savedPath: 
+
+                desiredPath, 
+
+ 
+
+            message: 
+
+                `The file was renamed to ${cloudFileName} and saved to its original location.` 
+
+        }; 
+
+ 
+
+ 
+
+    } catch ( 
+
+        error 
+
+    ) { 
+
+ 
+
+        console.error( 
+
+            "[Manual Save Local] Failed:", 
+
+            error 
+
+        ); 
+
+ 
+
+ 
+
+        return { 
+
+ 
+
+            ok: 
+
+                false, 
+
+ 
+
+            renamed: 
+
+                false, 
+
+ 
+
+            collision: 
+
+                false, 
+
+ 
+
+            fileName: 
+
+                mapping 
+
+                    ? path.basename( 
+
+                        mapping.oneDrivePath 
+
+                    ) 
+
+                    : path.basename( 
+
+                        absoluteOriginal 
+
+                    ), 
+
+ 
+
+            originalPath: 
+
+                mapping?.originalPath || 
+
+                absoluteOriginal, 
+
+ 
+
+            error: 
+
+                error.message 
+
+        }; 
+
+    } 
+
+} 
+
+    const directory = 
+
+        path.dirname( 
+
+            originalPath 
+
+        ); 
+
+ 
+
+ 
+
+    const extension = 
+
+        path.extname( 
+
+            originalPath 
+
+        ); 
+
+ 
+
+ 
+
+    const baseName = 
+
+        path.basename( 
+
+            originalPath, 
+
+            extension 
+
+        ); 
+
+ 
+
+ 
+
+    const timestamp = 
+
+        new Date() 
+
+            .toISOString() 
+
+            .replace( 
+
+                /[:.]/g, 
+
+                "-" 
+
+            ); 
+
+ 
+
+ 
+
+    return path.join( 
+
+        directory, 
+
+        `${baseName} (M365 conflict ${timestamp})${extension}` 
+
+    ); 
+
+} 
+
+ 
+
+ 
+
+function discoverRenamedWorkingFile( 
+
+    mapping 
+
+) { 
+
+ 
+
+    const directory = 
+
+        path.dirname( 
+
+            mapping.oneDrivePath 
+
+        ); 
+
+ 
+
+ 
+
+    if ( 
+
+        !fs.existsSync( 
+
+            directory 
+
+        ) 
+
+    ) { 
+
+ 
+
+        return null; 
+
+    } 
+
+ 
+
+ 
+
+    let entries; 
+
+ 
+
+ 
+
+    try { 
+
+ 
+
+        entries = 
+
+            fs.readdirSync( 
+
+                directory, 
+
+                { 
+
+                    withFileTypes: true 
+
+                } 
+
+            ); 
+
+ 
+
+ 
+
+    } catch (_) { 
+
+ 
+
+        return null; 
+
+    } 
+
+ 
+
+ 
+
+    const candidates = 
+
+        entries 
+
+            .filter( 
+
+                entry => 
+
+                    entry.isFile() 
+
+            ) 
+
+            .map( 
+
+                entry => 
+
+                    path.join( 
+
+                        directory, 
+
+                        entry.name 
+
+                    ) 
+
+            ) 
+
+            .filter( 
+
+                candidate => { 
+
+ 
+
+                    const name = 
+
+                        path.basename( 
+
+                            candidate 
+
+                        ); 
+
+ 
+
+ 
+
+                    if ( 
+
+                        SAFE_BACKUP_PATTERN.test( 
+
+                            name 
+
+                        ) 
+
+                    ) { 
+
+ 
+
+                        return false; 
+
+                    } 
+
+ 
+
+ 
+
+                    if ( 
+
+                        name.endsWith( 
+
+                            ".partial" 
+
+                        ) 
+
+                    ) { 
+
+ 
+
+                        return false; 
+
+                    } 
+
+ 
+
+ 
+
+                    if ( 
+
+                        name.endsWith( 
+
+                            ".tmp" 
+
+                        ) 
+
+                    ) { 
+
+ 
+
+                        return false; 
+
+                    } 
+
+ 
+
+ 
+
+                    return true; 
+
+                } 
+
+            ); 
+
+ 
+
+ 
+
+    if ( 
+
+        candidates.length !== 1 
+
+    ) { 
+
+ 
+
+        return null; 
+
+    } 
+
+ 
+
+ 
+
+    return candidates[0]; 
+
+} 
+
+ 
+
+ 
+
+function updateRenamedWorkingFile( 
+
+    mapping 
+
+) { 
+
+ 
+
+    if ( 
+
+        fs.existsSync( 
+
+            mapping.oneDrivePath 
+
+        ) 
+
+    ) { 
+
+ 
+
+        return false; 
+
+    } 
+
+ 
+
+ 
+
+    const replacement = 
+
+        discoverRenamedWorkingFile( 
+
+            mapping 
+
+        ); 
+
+ 
+
+ 
+
+    if ( 
+
+        !replacement 
+
+    ) { 
+
+ 
+
+        return false; 
+
+    } 
+
+ 
+
+ 
+
+    console.log( 
+
+        "[External Sync] OneDrive rename detected:" 
+
+    ); 
+
+ 
+
+ 
+
+    console.log( 
+
+        "  Old:", 
+
+        mapping.oneDrivePath 
+
+    ); 
+
+ 
+
+ 
+
+    console.log( 
+
+        "  New:", 
+
+        replacement 
+
+    ); 
+
+ 
+
+ 
+
+    mapping.oneDrivePath = 
+
+        replacement; 
+
+ 
+
+ 
+
+    mapping.fileName = 
+
+        path.basename( 
+
+            replacement 
+
+        ); 
+
+ 
+
+ 
+
+    mapping.updatedAt = 
+
+        new Date() 
+
+            .toISOString(); 
+
+ 
+
+ 
+
+    return true; 
+
+} 
+
+ 
+
+ 
+
+function registerExternalFile( 
+
+    originalPath, 
+
+    oneDrivePath, 
+
+    copied 
+
+) { 
+
+ 
+
+    const absoluteOriginal = 
+
+        path.resolve( 
+
+            originalPath 
+
+        ); 
+
+ 
+
+ 
+
+    const absoluteOneDrive = 
+
+        path.resolve( 
+
+            oneDrivePath 
+
+        ); 
+
+ 
+
+ 
+
+    const id = 
+
+        mappingId( 
+
+            absoluteOriginal 
+
+        ); 
+
+ 
+
+ 
+
+    const registry = 
+
+        readRegistry(); 
+
+ 
+
+ 
+
+    const previous = 
+
+        registry.mappings[ 
+
+            id 
+
+        ] || null; 
+
+ 
+
+ 
+
+    const oneDriveHash = 
+
+        safeHashFile( 
+
+            absoluteOneDrive 
+
+        ); 
+
+ 
+
+ 
+
+    const originalHash = 
+
+        safeHashFile( 
+
+            absoluteOriginal 
+
+        ); 
+
+ 
+
+ 
+
+    const baselineOneDriveHash = 
+
+        ( 
+
+            !previous || 
+
+            copied 
+
+        ) 
+
+            ? oneDriveHash 
+
+            : previous.lastCopiedHash; 
+
+ 
+
+ 
+
+    const baselineOriginalHash = 
+
+        ( 
+
+            !previous || 
+
+            copied 
+
+        ) 
+
+            ? originalHash 
+
+            : ( 
+
+                previous.originalBaselineHash || 
+
+                originalHash 
+
+            ); 
+
+ 
+
+ 
+
+    registry.mappings[ 
+
+        id 
+
+    ] = { 
+
+ 
+
+        id, 
+
+ 
+
+        originalPath: 
+
+            absoluteOriginal, 
+
+ 
+
+        oneDrivePath: 
+
+            absoluteOneDrive, 
+
+ 
+
+        fileName: 
+
+            path.basename( 
+
+                absoluteOneDrive 
+
+            ), 
+
+ 
+
+        registeredAt: 
+
+            previous?.registeredAt || 
+
+            new Date() 
+
+                .toISOString(), 
+
+ 
+
+        updatedAt: 
+
+            new Date() 
+
+                .toISOString(), 
+
+ 
+
+        lastCopiedHash: 
+
+            baselineOneDriveHash, 
+
+ 
+
+        originalBaselineHash: 
+
+            baselineOriginalHash, 
+
+ 
+
+        lastCopiedBackAt: 
+
+            previous?.lastCopiedBackAt || 
+
+            null, 
+
+ 
+
+        lastConflictAt: 
+
+            previous?.lastConflictAt || 
+
+            null, 
+
+ 
+
+        lastConflictPath: 
+
+            previous?.lastConflictPath || 
+
+            null, 
+
+ 
+
+        conflict: 
+
+            false, 
+
+ 
+
+        lastError: 
+
+            null 
+
+    }; 
+
+ 
+
+ 
+
+    writeRegistry( 
+
+        registry 
+
+    ); 
+
+ 
+
+ 
+
+    console.log( 
+
+        "[External Sync] Registered:", 
+
+        absoluteOneDrive, 
+
+        "->", 
+
+        absoluteOriginal 
+
+    ); 
+
+ 
+
+ 
+
+    return registry.mappings[ 
+
+        id 
+
+    ]; 
+
+} 
+
+ 
+
+ 
+
+function getExternalMapping( 
+
+    originalPath 
+
+) { 
+
+ 
+
+    const registry = 
+
+        readRegistry(); 
+
+ 
+
+ 
+
+    const id = 
+
+        mappingId( 
+
+            path.resolve( 
+
+                originalPath 
+
+            ) 
+
+        ); 
+
+ 
+
+ 
+
+    const mapping = 
+
+        registry.mappings[ 
+
+            id 
+
+        ] || null; 
+
+ 
+
+ 
+
+    if ( 
+
+        !mapping 
+
+    ) { 
+
+ 
+
+        return null; 
+
+    } 
+
+ 
+
+ 
+
+    if ( 
+
+        updateRenamedWorkingFile( 
+
+            mapping 
+
+        ) 
+
+    ) { 
+
+ 
+
+        registry.mappings[ 
+
+            id 
+
+        ] = 
+
+            mapping; 
+
+ 
+
+ 
+
+        writeRegistry( 
+
+            registry 
+
+        ); 
+
+    } 
+
+ 
+
+ 
+
+    return mapping; 
+
+} 
+
+ 
+
+ 
+
+function cleanupStaleMappings( 
+
+    registry 
+
+) { 
+
+ 
+
+    let changed = 
+
+        false; 
+
+ 
+
+ 
+
+    for ( 
+
+        const [ 
+
+            id, 
+
+            mapping 
+
+        ] 
+
+        of Object.entries( 
+
+            registry.mappings 
+
+        ) 
+
+    ) { 
+
+ 
+
+        if ( 
+
+            mapping.originalPath && 
+
+            mapping.originalPath.startsWith( 
+
+                "/run/user/" 
+
+            ) && 
+
+            !fs.existsSync( 
+
+                mapping.originalPath 
+
+            ) 
+
+        ) { 
+
+ 
+
+            console.log( 
+
+                "[External Sync] Removing stale portal mapping:", 
+
+                mapping.originalPath 
+
+            ); 
+
+ 
+
+ 
+
+            delete registry.mappings[ 
+
+                id 
+
+            ]; 
+
+ 
+
+ 
+
+            changed = 
+
+                true; 
+
+        } 
+
+    } 
+
+ 
+
+ 
+
+    return changed; 
+
+} 
+
+ 
+
+ 
+
+/* 
+
+ * Performs the actual Save-Back only after 
+
+ * the document remained unchanged for the 
+
+ * stability period. 
+
+ */ 
+
+function performStableSaveBack( 
+
+    mappingIdValue, 
+
+    expectedHash 
+
+) { 
+
+ 
+
+    const registry = 
+
+        readRegistry(); 
+
+ 
+
+ 
+
+    const mapping = 
+
+        registry.mappings[ 
+
+            mappingIdValue 
+
+        ]; 
+
+ 
+
+ 
+
+    if ( 
+
+        !mapping 
+
+    ) { 
+
+ 
+
+        pendingSaveBack.delete( 
+
+            mappingIdValue 
+
+        ); 
+
+ 
+
+        return; 
+
+    } 
+
+ 
+
+ 
+
+    try { 
+
+ 
+
+        if ( 
+
+            updateRenamedWorkingFile( 
+
+                mapping 
+
+            ) 
+
+        ) { 
+
+ 
+
+            writeRegistry( 
+
+                registry 
+
+            ); 
+
+        } 
+
+ 
+
+ 
+
+        if ( 
+
+            !fs.existsSync( 
+
+                mapping.oneDrivePath 
+
+            ) || 
+
+            !fs.existsSync( 
+
+                mapping.originalPath 
+
+            ) 
+
+        ) { 
+
+ 
+
+            pendingSaveBack.delete( 
+
+                mappingIdValue 
+
+            ); 
+
+ 
+
+            return; 
+
+        } 
+
+ 
+
+ 
+
+        const currentOneDriveHash = 
+
+            hashFile( 
+
+                mapping.oneDrivePath 
+
+            ); 
+
+ 
+
+ 
+
+        /* 
+
+         * File changed again during debounce. 
+
+         * 
+
+         * Restart the timer using the new hash. 
+
+         */ 
+
+        if ( 
+
+            currentOneDriveHash !== 
+
+                expectedHash 
+
+        ) { 
+
+ 
+
+            console.log( 
+
+                "[External Sync] File changed during debounce; restarting stability timer:", 
+
+                mapping.oneDrivePath 
+
+            ); 
+
+ 
+
+ 
+
+            scheduleStableSaveBack( 
+
+                mapping, 
+
+                currentOneDriveHash 
+
+            ); 
+
+ 
+
+ 
+
+            return; 
+
+        } 
+
+ 
+
+ 
+
+        const currentOriginalHash = 
+
+            hashFile( 
+
+                mapping.originalPath 
+
+            ); 
+
+ 
+
+ 
+
+        const baselineOriginalHash = 
+
+            mapping.originalBaselineHash || 
+
+            mapping.lastCopiedHash; 
+
+ 
+
+ 
+
+        /* 
+
+         * Conflict: 
+
+         * both the M365 copy and original changed. 
+
+         */ 
+
+        if ( 
+
+            baselineOriginalHash && 
+
+            currentOriginalHash !== 
+
+                baselineOriginalHash 
+
+        ) { 
+
+ 
+
+            const conflictPath = 
+
+                buildConflictPath( 
+
+                    mapping.originalPath 
+
+                ); 
+
+ 
+
+ 
+
+            fs.copyFileSync( 
+
+                mapping.oneDrivePath, 
+
+                conflictPath 
+
+            ); 
+
+ 
+
+ 
+
+            mapping.conflict = 
+
+                true; 
+
+ 
+
+ 
+
+            mapping.lastConflictAt = 
+
+                new Date() 
+
+                    .toISOString(); 
+
+ 
+
+ 
+
+            mapping.lastConflictPath = 
+
+                conflictPath; 
+
+ 
+
+ 
+
+            mapping.lastError = 
+
+                "Conflict detected: original file was modified locally. The Microsoft 365 version was preserved separately."; 
+
+ 
+
+ 
+
+            mapping.lastCopiedHash = 
+
+                currentOneDriveHash; 
+
+ 
+
+ 
+
+            mapping.updatedAt = 
+
+                new Date() 
+
+                    .toISOString(); 
+
+ 
+
+ 
+
+            writeRegistry( 
+
+                registry 
+
+            ); 
+
+ 
+
+ 
+
+            pendingSaveBack.delete( 
+
+                mappingIdValue 
+
+            ); 
+
+ 
+
+ 
+
+            console.warn( 
+
+                "[External Sync] CONFLICT:", 
+
+                mapping.originalPath 
+
+            ); 
+
+ 
+
+ 
+
+            console.warn( 
+
+                "[External Sync] M365 version preserved as:", 
+
+                conflictPath 
+
+            ); 
+
+ 
+
+ 
+
+            reportStatus( 
+
+                "conflict", 
+
+                { 
+
+                    file: 
+
+                        mapping.fileName, 
+
+ 
+
+                    originalPath: 
+
+                        mapping.originalPath, 
+
+ 
+
+                    conflictPath 
+
+                } 
+
+            ); 
+
+ 
+
+ 
+
+            return; 
+
+        } 
+
+ 
+
+ 
+
+        fs.accessSync( 
+
+            mapping.originalPath, 
+
+            fs.constants.W_OK 
+
+        ); 
+
+ 
+
+ 
+
+        reportStatus( 
+
+            "saving", 
+
+            { 
+
+                file: 
+
+                    mapping.fileName, 
+
+ 
+
+                originalPath: 
+
+                    mapping.originalPath 
+
+            } 
+
+        ); 
+
+ 
+
+ 
+
+        console.log( 
+
+            "[External Sync] Saving back:", 
+
+            mapping.oneDrivePath, 
+
+            "->", 
+
+            mapping.originalPath 
+
+        ); 
+
+ 
+
+ 
+
+        fs.copyFileSync( 
+
+            mapping.oneDrivePath, 
+
+            mapping.originalPath 
+
+        ); 
+
+ 
+
+ 
+
+        try { 
+
+ 
+
+            const sourceStat = 
+
+                fs.statSync( 
+
+                    mapping.oneDrivePath 
+
+                ); 
+
+ 
+
+ 
+
+            fs.utimesSync( 
+
+                mapping.originalPath, 
+
+                sourceStat.atime, 
+
+                sourceStat.mtime 
+
+            ); 
+
+ 
+
+ 
+
+        } catch (_) {} 
+
+ 
+
+ 
+
+        const newOriginalHash = 
+
+            hashFile( 
+
+                mapping.originalPath 
+
+            ); 
+
+ 
+
+ 
+
+        mapping.lastCopiedHash = 
+
+            currentOneDriveHash; 
+
+ 
+
+ 
+
+        mapping.originalBaselineHash = 
+
+            newOriginalHash; 
+
+ 
+
+ 
+
+        mapping.lastCopiedBackAt = 
+
+            new Date() 
+
+                .toISOString(); 
+
+ 
+
+ 
+
+        mapping.updatedAt = 
+
+            new Date() 
+
+                .toISOString(); 
+
+ 
+
+ 
+
+        mapping.conflict = 
+
+            false; 
+
+ 
+
+ 
+
+        mapping.lastConflictAt = 
+
+            null; 
+
+ 
+
+ 
+
+        mapping.lastConflictPath = 
+
+            null; 
+
+ 
+
+ 
+
+        mapping.lastError = 
+
+            null; 
+
+ 
+
+ 
+
+        writeRegistry( 
+
+            registry 
+
+        ); 
+
+ 
+
+ 
+
+        pendingSaveBack.delete( 
+
+            mappingIdValue 
+
+        ); 
+
+ 
+
+ 
+
+        console.log( 
+
+            "[External Sync] Original file updated successfully:", 
+
+            mapping.originalPath 
+
+        ); 
+
+ 
+
+ 
+
+        reportStatus( 
+
+            "saved", 
+
+            { 
+
+                file: 
+
+                    mapping.fileName, 
+
+ 
+
+                originalPath: 
+
+                    mapping.originalPath 
+
+            } 
+
+        ); 
+
+ 
+
+ 
+
+    } catch ( 
+
+        error 
+
+    ) { 
+
+ 
+
+        mapping.lastError = 
+
+            error.message; 
+
+ 
+
+ 
+
+        mapping.updatedAt = 
+
+            new Date() 
+
+                .toISOString(); 
+
+ 
+
+ 
+
+        writeRegistry( 
+
+            registry 
+
+        ); 
+
+ 
+
+ 
+
+        pendingSaveBack.delete( 
+
+            mappingIdValue 
+
+        ); 
+
+ 
+
+ 
+
+        console.error( 
+
+            "[External Sync] Save-Back failed:", 
+
+            error 
+
+        ); 
+
+ 
+
+ 
+
+        reportStatus( 
+
+            "error", 
+
+            { 
+
+                file: 
+
+                    mapping.fileName, 
+
+ 
+
+                error: 
+
+                    error.message 
+
+            } 
+
+        ); 
+
+    } 
+
+} 
+
+ 
+
+ 
+
+function scheduleStableSaveBack( 
+
+    mapping, 
+
+    expectedHash 
+
+) { 
+
+ 
+
+    const existing = 
+
+        pendingSaveBack.get( 
+
+            mapping.id 
+
+        ); 
+
+ 
+
+ 
+
+    if ( 
+
+        existing 
+
+    ) { 
+
+ 
+
+        clearTimeout( 
+
+            existing.timer 
+
+        ); 
+
+    } 
+
+ 
+
+ 
+
+    reportStatus( 
+
+        "syncing", 
+
+        { 
+
+            file: 
+
+                mapping.fileName 
+
+        } 
+
+    ); 
+
+ 
+
+ 
+
+    console.log( 
+
+        "[External Sync] Waiting for file stability:", 
+
+        mapping.oneDrivePath 
+
+    ); 
+
+ 
+
+ 
+
+    const timer = 
+
+        setTimeout( 
+
+            () => { 
+
+ 
+
+                performStableSaveBack( 
+
+                    mapping.id, 
+
+                    expectedHash 
+
+                ); 
+
+ 
+
+            }, 
+
+            STABILITY_DELAY_MS 
+
+        ); 
+
+ 
+
+ 
+
+    pendingSaveBack.set( 
+
+        mapping.id, 
+
+        { 
+
+            timer, 
+
+            expectedHash 
+
+        } 
+
+    ); 
+
+} 
+
+ 
+
+ 
+
+/* 
+
+ * Called after OneDrive reports that a sync 
+
+ * cycle has completed. 
+
+ * 
+
+ * We no longer copy immediately. 
+
+ * We only schedule Save-Back. 
+
+ */ 
+
+function syncExternalCopiesBack() { 
+
+ 
+
+    const registry = 
+
+        readRegistry(); 
+
+ 
+
+ 
+
+    let registryChanged = 
+
+        cleanupStaleMappings( 
+
+            registry 
+
+        ); 
+
+ 
+
+ 
+
+    for ( 
+
+        const mapping 
+
+        of Object.values( 
+
+            registry.mappings 
+
+        ) 
+
+    ) { 
+
+ 
+
+        try { 
+
+ 
+
+            if ( 
+
+                updateRenamedWorkingFile( 
+
+                    mapping 
+
+                ) 
+
+            ) { 
+
+ 
+
+                registryChanged = 
+
+                    true; 
+
+            } 
+
+ 
+
+ 
+
+            if ( 
+
+                !fs.existsSync( 
+
+                    mapping.oneDrivePath 
+
+                ) || 
+
+                !fs.existsSync( 
+
+                    mapping.originalPath 
+
+                ) 
+
+            ) { 
+
+ 
+
+                continue; 
+
+            } 
+
+ 
+
+ 
+
+            const currentHash = 
+
+                hashFile( 
+
+                    mapping.oneDrivePath 
+
+                ); 
+
+ 
+
+ 
+
+            /* 
+
+             * Nothing changed. 
+
+             */ 
+
+            if ( 
+
+                currentHash === 
+
+                mapping.lastCopiedHash 
+
+            ) { 
+
+ 
+
+                continue; 
+
+            } 
+
+ 
+
+ 
+
+            /* 
+
+             * A changed OneDrive file is not copied 
+
+             * immediately anymore. 
+
+             */ 
+
+            scheduleStableSaveBack( 
+
+                mapping, 
+
+                currentHash 
+
+            ); 
+
+ 
+
+ 
+
+        } catch ( 
+
+            error 
+
+        ) { 
+
+ 
+
+            console.error( 
+
+                "[External Sync] Unable to evaluate mapping:", 
+
+                mapping.originalPath, 
+
+                error.message 
+
+            ); 
+
+ 
+
+ 
+
+            reportStatus( 
+
+                "error", 
+
+                { 
+
+                    file: 
+
+                        mapping.fileName, 
+
+ 
+
+                    error: 
+
+                        error.message 
+
+                } 
+
+            ); 
+
+        } 
+
+    } 
+
+ 
+
+ 
+
+    if ( 
+
+        registryChanged 
+
+    ) { 
+
+ 
+
+        writeRegistry( 
+
+            registry 
+
+        ); 
+
+    } 
+
+} 
+
+ 
+
+ 
+
+function getConflictMappings() { 
+
+ 
+
+    const registry = 
+
+        readRegistry(); 
+
+ 
+
+ 
+
+    return Object 
+
+        .values( 
+
+            registry.mappings 
+
+        ) 
+
+        .filter( 
+
+            mapping => 
+
+                mapping.conflict 
+
+        ); 
+
+} 
+
+ 
+ 
+module.exports = {
+
+    registerExternalFile,
+
+    syncExternalCopiesBack,
+
+    getConflictMappings,
+
+    getExternalMapping,
+
+    saveLocalNow,
+
+    setStatusReporter,
+
+    registryFile
+};
