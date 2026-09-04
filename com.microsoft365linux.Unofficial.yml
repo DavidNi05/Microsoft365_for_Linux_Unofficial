@@ -5,34 +5,34 @@ sdk: org.gnome.Sdk
 command: m365-linux
 
 finish-args:
-  # Comunicação de rede e IPC
+  # Network and IPC communication
   - --share=network
   - --share=ipc
 
-  # Servidores de exibição gráfica
+  # Display servers
   - --socket=wayland
   - --socket=fallback-x11
 
-  # Aceleração gráfica por hardware (DRI)
+  # Hardware graphic acceleration (DRI)
   - --device=dri
 
-  # Áudio do sistema (PulseAudio / PipeWire para o som das notificações Fluent 2)
+  # Audio system (PulseAudio / PipeWire)
   - --socket=pulseaudio
 
-  # Notificações do sistema e Portais
+  # Notifications and Portals
   - --talk-name=org.freedesktop.Notifications
   - --talk-name=org.freedesktop.portal.Notification
   - --talk-name=org.freedesktop.portal.Background
 
-  # Suporte à bandeja do sistema (Tray / StatusNotifier)
+  # System tray support (Tray / StatusNotifier)
   - --talk-name=org.kde.StatusNotifierWatcher
   - --own-name=org.kde.StatusNotifierItem
 
-  # Barramentos GVfs / GIO para gravação de metadados no gerenciador de arquivos
+  # GVfs / GIO buses for file manager metadata
   - --talk-name=org.gtk.vfs
   - --talk-name=org.gtk.vfs.*
 
-  # Acesso ao sistema de arquivos do usuário
+  # Filesystem permissions
   - --filesystem=home
   - --filesystem=xdg-config/onedrive:create
 
@@ -42,7 +42,7 @@ cleanup:
   - /share/icons/hicolor/scalable/apps/onedrive-notifications.svg
 
 modules:
-  # Compilador D necessário exclusivamente para build do abraunegg/onedrive
+  # D compiler required exclusively to build abraunegg/onedrive
   - name: ldc
     buildsystem: simple
     sources:
@@ -53,7 +53,7 @@ modules:
       - mkdir -p /app/ldc
       - cp -a . /app/ldc/
 
-  # Daemon do OneDrive
+  # OneDrive client daemon
   - name: onedrive
     buildsystem: simple
     sources:
@@ -70,7 +70,7 @@ modules:
       - make -j${FLATPAK_BUILDER_N_JOBS}
       - make install
 
-  # Aplicação Microsoft 365 for Linux
+  # Main application: Microsoft 365 for Linux
   - name: microsoft365-for-linux
     buildsystem: simple
     sources:
@@ -85,6 +85,7 @@ modules:
       - chmod +x /app/bin/m365-linux
 
       - install -Dm644 desktop/com.microsoft365linux.Unofficial.desktop /app/share/applications/com.microsoft365linux.Unofficial.desktop
+      - install -Dm644 com.microsoft365linux.Unofficial.metainfo.xml /app/share/metainfo/com.microsoft365linux.Unofficial.metainfo.xml
       - install -Dm644 icons/hicolor/512x512/apps/com.microsoft365linux.Unofficial.png /app/share/icons/hicolor/512x512/apps/com.microsoft365linux.Unofficial.png
       - install -Dm644 assets/m365-tray.png /app/share/microsoft365/assets/m365-tray.png
       - install -Dm644 assets/onedrive-folder.png /app/share/microsoft365/assets/onedrive-folder.png
