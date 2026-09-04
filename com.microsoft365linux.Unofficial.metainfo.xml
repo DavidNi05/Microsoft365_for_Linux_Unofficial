@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.microsoft365linux.Unofficial</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <name>Microsoft 365 (Unofficial)</name>
+  <summary>Unofficial desktop client for Microsoft 365 with native OneDrive sync</summary>
+
+  <description>
+    <p>
+      Microsoft 365 for Linux (Unofficial) provides a seamless desktop integration for Microsoft 365 web applications combined with native background synchronization powered by OneDrive for Linux.
+    </p>
+    <p>Features include:</p>
+    <ul>
+      <li>Integrated access to Word, Excel, PowerPoint, OneNote, Outlook, and OneDrive</li>
+      <li>Continuous background OneDrive synchronization using inotify filesystem monitoring</li>
+      <li>Direct local file editing in Office Online via isolated managed cloud uploads</li>
+      <li>Atomic file writes with real-time web renaming detection</li>
+      <li>System tray indicator and background autostart capabilities</li>
+    </ul>
+    <p>
+      Note: This is an unofficial community project and is not endorsed by, sponsored by, or affiliated with Microsoft Corporation.
+    </p>
+  </description>
+
+  <launchable type="desktop-id">com.microsoft365linux.Unofficial.desktop</launchable>
+
+  <url type="homepage">https://github.com/DavidNi05/Microsoft365-for-Linux-Unofficial</url>
+  <url type="bugtracker">https://github.com/DavidNi05/Microsoft365-for-Linux-Unofficial/issues</url>
+
+  <developer_name>David Leão</developer_name>
+
+  <provides>
+    <binary>microsoft365-unofficial</binary>
+  </provides>
+
+  <content_rating type="oars-1.1" />
+
+  <releases>
+    <release version="1.0.0" date="2026-09-04">
+      <description>
+        <p>Initial stable release featuring native OneDrive sync and Office Online integration.</p>
+      </description>
+    </release>
+  </releases>
+</component>
