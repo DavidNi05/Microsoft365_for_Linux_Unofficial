@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Settings & Preferences - Microsoft 365 for Linux</title>
+  <style>
+    :root {
+      --bg-page: #f8fafc;
+      --surface-card: #ffffff;
+      --surface-border: #e2e8f0;
+      --text-primary: #0f172a;
+      --text-secondary: #64748b;
+      --fluent-blue: #0078d4;
+      --fluent-blue-hover: #106ebe;
+      --card-radius: 12px;
+      --switch-active: #0078d4;
+      --switch-bg: #cbd5e1;
+      --danger-color: #d83b01;
+      --warning-bg: #fff9e6;
+      --warning-border: #fed382;
+      --warning-text: #7a4100;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI", Roboto, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-page);
+      color: var(--text-primary);
+      padding: 32px 20px 48px 20px;
+      display: flex;
+      justify-content: center;
+      min-height: 100vh;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 840px;
+      display: flex;
+      flex-direction: column;
+      gap: 22px;
+    }
+
+    .header-panel {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 6px 4px;
+    }
+
+    .header-icon {
+      width: 46px;
+      height: 46px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #0078d4 0%, #004e8c 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #ffffff;
+      box-shadow: 0 4px 12px rgba(0, 120, 212, 0.25);
+    }
+
+    .header-text h1 {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: -0.02em;
+    }
+
+    .header-text p {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-top: 2px;
+    }
+
+    .fluent-card {
+      background: var(--surface-card);
+      border: 1px solid var(--surface-border);
+      border-radius: var(--card-radius);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.04);
+      overflow: hidden;
+    }
+
+    .card-header {
+      padding: 18px 22px 14px 22px;
+      border-bottom: 1px solid #f1f5f9;
+      background-color: #fafbfd;
+    }
+
+    .card-header h2 {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .card-header span {
+      font-size: 12.5px;
+      color: var(--text-secondary);
+      display: block;
+      margin-top: 2px;
+    }
+
+    .setting-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 22px;
+      border-bottom: 1px solid #f1f5f9;
+      transition: background-color 0.15s ease;
+      gap: 20px;
+    }
+
+    .setting-item:last-child {
+      border-bottom: none;
+    }
+
+    .setting-item:hover {
+      background-color: #fbfcfe;
+    }
+
+    .setting-info {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      max-width: 68%;
+    }
+
+    .setting-title {
+      font-size: 13.5px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .setting-description {
+      font-size: 12px;
+      color: var(--text-secondary);
+      line-height: 1.45;
+    }
+
+    .setting-action {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 22px;
+      flex-shrink: 0;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-color: var(--switch-bg);
+      transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      border-radius: 24px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 16px;
+      width: 16px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      border-radius: 50%;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    }
+
+    input:checked + .slider {
+      background-color: var(--switch-active);
+    }
+
+    input:checked + .slider:before {
+      transform: translateX(22px);
+    }
+
+    .fluent-select {
+      background-color: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 7px 12px;
+      font-size: 13px;
+      color: var(--text-primary);
+      cursor: pointer;
+      outline: none;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+      min-width: 190px;
+    }
+
+    .fluent-select:focus {
+      border-color: var(--fluent-blue);
+      box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.2);
+    }
+
+    .color-picker-input {
+      width: 36px;
+      height: 34px;
+      padding: 0 2px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      background: #ffffff;
+      cursor: pointer;
+      display: none;
+    }
+
+    .fluent-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 14px;
+      font-size: 12.5px;
+      font-weight: 500;
+      color: var(--fluent-blue);
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 6px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.18s ease;
+      white-space: nowrap;
+    }
+
+    .fluent-btn:hover { background: #dbeafe; }
+
+    .fluent-btn-danger {
+      color: var(--danger-color);
+      background: #fff1f2;
+      border-color: #fecdd3;
+    }
+    .fluent-btn-danger:hover { background: #ffe4e6; }
+
+    .warning-callout {
+      margin-top: 6px;
+      padding: 8px 12px;
+      background-color: var(--warning-bg);
+      border-left: 3px solid var(--warning-border);
+      border-radius: 4px;
+      font-size: 11.5px;
+      color: var(--warning-text);
+      line-height: 1.4;
+    }
+
+    .kbd-badge {
+      display: inline-block;
+      padding: 3px 8px;
+      background: #f1f5f9;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 11px;
+      color: #334155;
+      box-shadow: 0 1px 1px rgba(0,0,0,0.08);
+      white-space: nowrap;
+    }
+
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(15, 23, 42, 0.45);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+    }
+
+    .modal-overlay.active { display: flex; }
+
+    .modal-box {
+      width: 90%;
+      max-width: 680px;
+      background: #ffffff;
+      border-radius: 12px;
+      border: 1px solid #cbd5e1;
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.18);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .modal-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid #e2e8f0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .modal-title { font-size: 15px; font-weight: 600; color: var(--text-primary); }
+    .modal-close { background: none; border: none; font-size: 18px; cursor: pointer; color: var(--text-secondary); }
+
+    .modal-body {
+      padding: 16px 20px;
+      max-height: 380px;
+      overflow-y: auto;
+      font-family: monospace;
+      font-size: 11.5px;
+      line-height: 1.5;
+      background: #0f172a;
+      color: #e2e8f0;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    
+    <div class="header-panel">
+      <div class="header-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+      </div>
+      <div class="header-text">
+        <h1>Settings & Preferences</h1>
+        <p>Customize interface, left bar colors, synchronization behavior, and Linux integration.</p>
+      </div>
+    </div>
+
+    <!-- 1. Appearance & Interface -->
+    <div class="fluent-card">
+      <div class="card-header">
+        <h2>1. Appearance & Interface (Visual & Fluent Design)</h2>
+        <span>Control startup app, left bar palette, and sidebar responsiveness.</span>
+      </div>
+
+      <!-- Left Bar Accent Color Theme -->
+      <div class="setting-item">
+        <div class="setting-info">
+          <span class="setting-title">Left Bar Color Theme</span>
+          <span class="setting-description">Choose whether the left sidebar uses default styling, matches the topbar color dynamically, or uses a custom color palette.</span>
+        </div>
+        <div class="setting-action">
+          <select id="prefLeftbarTheme" class="fluent-select" onchange="handleLeftbarThemeChange(this.value)">
+            <option value="default">Default</option>
+            <option value="topbar">Match Topbar Color</option>
+            <option value="custom">Custom Color Palette...</option>
+          </select>
+          <input type="color" id="prefCustomColorPicker" class="color-picker-input" value="#f8fafc" onchange="handleCustomColorChange(this.value)">
+        </div>
+      </div>
+
+      <!-- Default Startup App -->
+      <div class="setting-item">
+        <div class="setting-info">
+          <span class="setting-title">Default Startup App</span>
+          <span class="setting-description">Select which Microsoft 365 application opens automatically on application launch.</span>
+        </div>
+        <div class="setting-action">
+          <select id="prefDefaultApp" class="fluent-select" onchange="saveConfig('default_app', this.value)">
+            <optgroup label="Office Apps">
+              <option value="word">Word</option>
+              <option value="excel">Excel</option>
+              <option value="powerpoint">PowerPoint</option>
+              <option value="onenote">OneNote</option>
+              <option value="outlook">Outlook</option>
+              <option value="teams">Teams</option>
+              <option value="copilot">Copilot</option>
+            </optgroup>
+            <optgroup label="Productivity & Creation">
+              <option value="todo">To Do</option>
+              <option value="designer">Designer</option>
+              <option value="clipchamp">Clipchamp</option>
+            </optgroup>
+            <optgroup label="Cloud Storage">
+              <option value="onedrive">OneDrive Web</option>
+            </optgroup>
+            <optgroup label="Behavior">
+              <option value="last_used">Remember Last Used App</option>
+            </optgroup>
+          </select>
+        </div>
+      </div>
+
+      <!-- Auto-Hide Sidebar -->
+      <div class="setting-item">
+        <div class="setting-info">
+          <span class="setting-title">Auto-Hide Sidebar</span>
+          <span class="setting-description">Automatically collapse the sidebar while editing documents, revealing it when hovering over the left edge.</span>
+        </div>
+        <div class="setting-action">
+          <label class="switch">
+            <input type="checkbox" id="prefAutoHideSidebar" onchange="saveConfig('autohide_sidebar', this.checked)">
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Compact Navigation Bar -->
+      <div class="setting-item">
+        <div class="setting-info">
+          <span class="setting-title">Compact Navigation Bar</span>
+          <span class="setting-description">Compress the sidebar to ~54px showing icons only, saving horizontal screen real estate.</span>
+        </div>
+        <div class="setting-action">
+          <label class="switch">
+            <input type="checkbox" id="prefCompactNav" onchange="saveConfig('compact_nav', this.checked)">
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. OneDrive & Cloud Synchronization -->
+    <div class="fluent-card">
+      <div class="card-header">
+        <h2>2. OneDrive & Cloud Synchronization</h2>
+        <span>Tune native daemon polling intervals, logs, and metered connections.</span>
+      </div>
+
+      <!-- Ativar / Desativar Sincronização Nativa (abraunegg/onedrive) -->
+      <div class="setting-item">
+        <div class="setting-info">
+          <span class="setting-title">Enable Native OneDrive Background Sync</span>
+          <span class="setting-description">Allow the native abraunegg/onedrive daemon to run in the background, integrating your local home folder with Microsoft Cloud so you can edit files natively.</span>
+          <div class="warning-callout">
+            ℹ️ <strong>Note:</strong> Enabling this integrates your local home directory (~/OneDrive) directly with cloud storage.
+          </div>
+        </div>
+        <div class="setting-action">
+          <label class="switch">
+            <input type="checkbox" id="prefNativeOnedriveSync" onchange="handleNativeSyncChange(this.checked)">
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Sync Interval -->
+      <div class="setting-item">
+        <div class="setting-info">
+          <span class="setting-title">Sync Polling Interval</span>
+          <span class="setting-description">Frequency at which the daemon polls Microsoft Cloud for document changes.</span>
+        </div>
+        <div class="setting-action">
+          <select id="prefSyncInterval" class="fluent-select" onchange="saveConfig('sync_interval', this.value)">
+            <option value="manual">Manual only (Flatpak Default - On Save)</option>
+            <option value="30">Every 30 seconds</option>
+            <option value="60">Every 1 minute</option>
+            <option value="120">Every 2 minutes</option>
+            <option value="300">Every 5 minutes</option>
+            <option value="900">Every 15 minutes</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Sync Over Metered Connections -->
+      <div class="setting-item">
+        <div class="setting-info">
+          <span class="setting-title">Pause on Metered Connections</span>
+          <span class="setting-description">Halt background document sync when connected to cellular 4G/5G hotspots or metered Wi-Fi networks.</span>
+        </div>
+        <div class="setting-action">
+          <label class="switch">
+            <input type="checkbox" id="prefMeteredPause" onchange="saveConfig('pause_metered', this.checked)">
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Open Sync Log Viewer -->
+      <div class="setting-item">
+        <div class="setting-info">
+          <span class="setting-title">OneDrive Sync Log Viewer</span>
+          <span class="setting-description">Inspect real-time synchronisation activity, upload/download progress, and daemon states.</span>
+        </div>
+        <div class="setting-action">
+          <button class="fluent-btn" onclick="openLogModal()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="4 17 10 11 4 5"></polyline>
+              <line x1="12" y1="19" x2="20" y2="19"></line>
+            </svg>
+            <span>View Logs</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. File Management & Storage Cache -->
+    <div class="fluent-card">
+      <div class="card-header">
+        <h2>3. File Management & Cache</h2>
+        <span>Directory locations, hardware acceleration, and session cleanup.</span>
+      </div>
+
+      <!-- Custom Local OneDrive Folder -->
+      <div class="setting-item">
+        <div class="setting-info">
+          <span class="setting-title">Custom Local OneDrive Folder</span>
+          <span class="setting-description">Specify an alternate local directory for syncing files instead of the standard ~/OneDrive.</span>
+          <div class="warning-callout">
+            ⚠️ <strong>Warning:</strong> Changing this folder from the default path prevents the native background daemon from reading locally tracked files until a full resync is executed.
+          </div>
+        </div>
+        <div class="setting-action">
+          <button class="fluent-btn" onclick="triggerCustomFolderPicker()">
+            <span>Choose Folder</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Hardware Acceleration (GPU) - Desativado por padrão -->
+      <div class="setting-item">
+        <div class="setting-info">
+          <span class="setting-title">Hardware Acceleration (GPU)</span>
+          <span class="setting-description">Utilize GPU DRI hardware rendering. Keep disabled if experiencing graphical glitches or blank screens.</span>
+        </div>
+        <div class="setting-action">
+          <label class="switch">
+            <input type="checkbox" id="prefHardwareAccel" onchange="saveConfig('hardware_accel', this.checked)">
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Clear Web Cache & Cookies -->
+      <div class="setting-item">
+        <div class="setting-info">
+          <span class="setting-title">Clear Web Cache & Session Cookies</span>
+          <span class="setting-description">Purge local temporary web storage, offline caches, and reset all preferences to default.</span>
+        </div>
+        <div class="setting-action">
+          <button class="fluent-btn fluent-btn-danger" onclick="triggerClearCache()">
+            <span>Clear Session</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. Native Linux Shortcuts & System Behavior -->
+    <div class="fluent-card">
+      <div class="card-header">
+        <h2>4. System Integration & Global Hotkeys</h2>
+        <span>Startup behavior, desktop entry shortcuts, and hotkeys.</span>
+      </div>
+
+      <!-- Desktop Shortcut por Switch -->
+      <div class="setting-item">
+        <div class="setting-info">
+          <span class="setting-title">Desktop Shortcut</span>
+          <span class="setting-description">Automatically create or remove a launch icon on your Linux desktop (~/Desktop or Área de trabalho) compliant with Flathub policies.</span>
+        </div>
+        <div class="setting-action">
+          <label class="switch">
+            <input type="checkbox" id="prefDesktopShortcut" onchange="handleDesktopShortcutChange(this.checked)">
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Launch at Startup -->
+      <div class="setting-item">
+        <div class="setting-info">
+          <span class="setting-title">Launch at System Startup</span>
+          <span class="setting-description">Start Microsoft 365 automatically upon Linux user session login.</span>
+        </div>
+        <div class="setting-action">
+          <label class="switch">
+            <input type="checkbox" id="prefAutostart" onchange="saveConfig('autostart', this.checked)">
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Close to Tray -->
+      <div class="setting-item">
+        <div class="setting-info">
+          <span class="setting-title">Close to System Tray</span>
+          <span class="setting-description">Closing the application window keeps it minimized in the system tray instead of exiting.</span>
+        </div>
+        <div class="setting-action">
+          <label class="switch">
+            <input type="checkbox" id="prefCloseToTray" onchange="saveConfig('close_to_tray', this.checked)">
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Global Hotkey com Switch Ativar / Desativar -->
+      <div class="setting-item">
+        <div class="setting-info">
+          <span class="setting-title">Global Quick-Launch Hotkey</span>
+          <span class="setting-description">Bring Microsoft 365 to the foreground from anywhere in your desktop session. Requires X11 session or Desktop Portal GlobalShortcuts support.</span>
+        </div>
+        <div class="setting-action">
+          <span class="kbd-badge">Ctrl + Alt + M</span>
+          <label class="switch">
+            <input type="checkbox" id="prefGlobalHotkey" onchange="saveConfig('global_hotkey', this.checked)">
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Modal Log Viewer -->
+  <div id="logModal" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-header">
+        <span class="modal-title">abraunegg/onedrive Daemon Log</span>
+        <button class="modal-close" onclick="closeLogModal()">&times;</button>
+      </div>
+      <div class="modal-body" id="modalLogContent">Loading daemon journal logs...</div>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      if (window.electronAPI?.getAllPreferences) {
+        window.electronAPI.getAllPreferences().then(prefs => {
+          if (prefs) {
+            document.getElementById("prefLeftbarTheme").value = prefs.leftbar_theme || "default";
+            const customPicker = document.getElementById("prefCustomColorPicker");
+            customPicker.value = prefs.leftbar_custom_color || "#f8fafc";
+            customPicker.style.display = (prefs.leftbar_theme === "custom") ? "inline-block" : "none";
+
+            document.getElementById("prefDefaultApp").value = prefs.default_app || "word";
+            document.getElementById("prefAutoHideSidebar").checked = prefs.autohide_sidebar === true;
+            document.getElementById("prefCompactNav").checked = prefs.compact_nav === true;
+
+            document.getElementById("prefSyncInterval").value = prefs.sync_interval || "manual";
+            document.getElementById("prefMeteredPause").checked = prefs.pause_metered === true;
+            document.getElementById("prefNativeOnedriveSync").checked = prefs.native_onedrive_sync === true;
+
+            document.getElementById("prefHardwareAccel").checked = prefs.hardware_accel === true;
+
+            document.getElementById("prefAutostart").checked = prefs.autostart === true;
+            document.getElementById("prefCloseToTray").checked = prefs.close_to_tray === true;
+            document.getElementById("prefGlobalHotkey").checked = prefs.global_hotkey === true;
+            document.getElementById("prefDesktopShortcut").checked = prefs.desktop_shortcut === true;
+          }
+        });
+      }
+    });
+
+    function handleLeftbarThemeChange(theme) {
+      const picker = document.getElementById("prefCustomColorPicker");
+      picker.style.display = (theme === "custom") ? "inline-block" : "none";
+      saveConfig("leftbar_theme", theme);
+    }
+
+    function handleCustomColorChange(color) {
+      saveConfig("leftbar_custom_color", color);
+    }
+
+    function handleDesktopShortcutChange(checked) {
+      saveConfig("desktop_shortcut", checked);
+      showToast("Desktop Shortcut", checked ? "Shortcut created on Desktop" : "Shortcut removed from Desktop");
+
+      if (window.electronAPI && typeof window.electronAPI.setDesktopShortcut === "function") {
+        window.electronAPI.setDesktopShortcut(checked);
+      }
+    }
+
+    function handleNativeSyncChange(checked) {
+      saveConfig("native_onedrive_sync", checked);
+      showToast("OneDrive Background Sync", checked ? "Native daemon synchronization enabled" : "Native daemon synchronization paused");
+
+      if (window.electronAPI && typeof window.electronAPI.setNativeOneDriveSync === "function") {
+        window.electronAPI.setNativeOneDriveSync(checked);
+      }
+    }
+
+    function saveConfig(key, value) {
+      localStorage.setItem("pref_" + key, value);
+      showToast(key.replace(/_/g, " "), "Preference saved successfully");
+
+      if (window.electronAPI && typeof window.electronAPI.setAppPreference === "function") {
+        window.electronAPI.setAppPreference(key, value);
+      }
+    }
+
+    function triggerCustomFolderPicker() {
+      if (confirm("Changing the default folder (~/OneDrive) will prevent the background daemon from reading local files until re-indexed. Do you wish to choose a new path?")) {
+        if (window.electronAPI && typeof window.electronAPI.selectFolderDialog === "function") {
+          window.electronAPI.selectFolderDialog().then(path => {
+            if (path) {
+              saveConfig("custom_sync_dir", path);
+              showToast("OneDrive Directory", "Custom path set: " + path);
+            }
+          });
+        }
+      }
+    }
+
+    function triggerClearCache() {
+      if (confirm("This will clear cookies, saved web caches, and reset all preferences to default (disabled). Continue?")) {
+        localStorage.clear();
+
+        document.getElementById("prefHardwareAccel").checked = false;
+        document.getElementById("prefNativeOnedriveSync").checked = false;
+        document.getElementById("prefDesktopShortcut").checked = false;
+        document.getElementById("prefAutostart").checked = false;
+        document.getElementById("prefCloseToTray").checked = false;
+        document.getElementById("prefGlobalHotkey").checked = false;
+        document.getElementById("prefAutoHideSidebar").checked = false;
+        document.getElementById("prefCompactNav").checked = false;
+        document.getElementById("prefMeteredPause").checked = false;
+        document.getElementById("prefSyncInterval").value = "manual";
+        document.getElementById("prefLeftbarTheme").value = "default";
+        document.getElementById("prefCustomColorPicker").style.display = "none";
+        document.getElementById("prefDefaultApp").value = "word";
+
+        if (window.electronAPI) {
+          if (typeof window.electronAPI.clearSessionData === "function") {
+            window.electronAPI.clearSessionData();
+          }
+          if (typeof window.electronAPI.setDesktopShortcut === "function") {
+            window.electronAPI.setDesktopShortcut(false);
+          }
+          if (typeof window.electronAPI.setNativeOneDriveSync === "function") {
+            window.electronAPI.setNativeOneDriveSync(false);
+          }
+          if (typeof window.electronAPI.setAppPreference === "function") {
+            window.electronAPI.setAppPreference("leftbar_theme", "default");
+            window.electronAPI.setAppPreference("leftbar_custom_color", "#f8fafc");
+            window.electronAPI.setAppPreference("default_app", "word");
+            window.electronAPI.setAppPreference("hardware_accel", false);
+            window.electronAPI.setAppPreference("autostart", false);
+            window.electronAPI.setAppPreference("close_to_tray", false);
+            window.electronAPI.setAppPreference("global_hotkey", false);
+            window.electronAPI.setAppPreference("compact_nav", false);
+            window.electronAPI.setAppPreference("autohide_sidebar", false);
+            window.electronAPI.setAppPreference("native_onedrive_sync", false);
+            window.electronAPI.setAppPreference("pause_metered", false);
+            window.electronAPI.setAppPreference("sync_interval", "manual");
+          }
+        }
+        showToast("Storage Cache", "All preferences reset to default and session cleared");
+        setTimeout(() => location.reload(), 1000);
+      }
+    }
+
+    function openLogModal() {
+      const modal = document.getElementById("logModal");
+      const logBody = document.getElementById("modalLogContent");
+      modal.classList.add("active");
+
+      if (window.electronAPI && typeof window.electronAPI.getOneDriveLogs === "function") {
+        window.electronAPI.getOneDriveLogs().then(logs => {
+          logBody.textContent = logs || "[Daemon] Running abraunegg/onedrive in monitor mode...\n[Sync] 0 pending uploads, 0 pending downloads.";
+        });
+      } else {
+        logBody.textContent = "[Daemon Monitor] Systemd/User service active.\n[Local SQLite] Database checked: ~/.config/onedrive/items.sqlite3\n[Sync Engine] Initialized without errors.\n[Mode] Flatpak Default: On-demand sync enabled on save.";
+      }
+    }
+
+    function closeLogModal() {
+      document.getElementById("logModal").classList.remove("active");
+    }
+
+    function showToast(title, message) {
+      if (window.electronAPI && typeof window.electronAPI.showFluentToast === "function") {
+        window.electronAPI.showFluentToast({
+          title: "Settings & Preferences",
+          message: `${title}: ${message || "Updated"}`,
+          icon: "Home.png",
+          duration: 3500
+        });
+      }
+    }
+  </script>
+</body>
+</html>

@@ -1,7 +1,10 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("electronAPI", {
-  notifyResize: () => ipcRenderer.send("window-resize-notify"),
+  notifyResize: (newWidth) => ipcRenderer.send("window-resize-notify", newWidth),
+
+  // Notificação oficial Fluent 2
+  showFluentToast: (options) => ipcRenderer.invoke("show-fluent-toast", options),
 
   // Navegação e Serviços
   openService: (service) => ipcRenderer.send("open-service", service),
@@ -18,8 +21,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
   // OneDrive e Armazenamento
   openLocalOneDrive: () => ipcRenderer.send("open-local-onedrive"),
   getOneDriveStatus: () => ipcRenderer.invoke("onedrive-get-status"),
-  getOneDriveQuota: (force) => ipcRenderer.invoke("onedrive-get-quota", force),
-  getStorageQuota: () => ipcRenderer.invoke("onedrive:get-storage-quota"),
   openOneDriveFolder: () => ipcRenderer.invoke("onedrive-open-folder"),
   syncOneDriveNow: () => ipcRenderer.invoke("onedrive-sync-now"),
   saveLocalNow: () => ipcRenderer.invoke("office-save-local-now"),
@@ -28,7 +29,17 @@ contextBridge.exposeInMainWorld("electronAPI", {
   openFileDialog: () => ipcRenderer.invoke("open-file-dialog"),
   openExternalFile: (filePath) => ipcRenderer.invoke("office-open-external-file", filePath),
 
+  // Configurações & Preferências do Sistema
+  getAllPreferences: () => ipcRenderer.invoke("get-all-preferences"),
+  setAppPreference: (key, val) => ipcRenderer.send("set-app-preference", key, val),
+  setDesktopShortcut: (enable) => ipcRenderer.invoke("set-desktop-shortcut", enable),
+  setNativeOneDriveSync: (enable) => ipcRenderer.invoke("set-native-onedrive-sync", enable),
+  clearSessionData: () => ipcRenderer.invoke("clear-session-data"),
+  selectFolderDialog: () => ipcRenderer.invoke("select-folder-dialog"),
+  getOneDriveLogs: () => ipcRenderer.invoke("get-onedrive-logs"),
+
   // Eventos Push (Main -> Renderer)
+  onConfigUpdated: (callback) => ipcRenderer.on("config-updated", (_event, val) => callback(val)),
   onSelectServiceTab: (callback) => ipcRenderer.on("select-service-tab", (_event, val) => callback(val)),
   onBrowserLoading: (callback) => ipcRenderer.on("browser-loading", (_event, val) => callback(val)),
   onOfficeFileLoading: (callback) => ipcRenderer.on("office-file-loading", (_event, val) => callback(val)),
@@ -36,8 +47,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
   onOfficeFileFinished: (callback) => ipcRenderer.on("office-file-finished", () => callback()),
   onOfficeFileRenamed: (callback) => ipcRenderer.on("office-file-renamed", (_event, val) => callback(val)),
   onOneDriveStatus: (callback) => ipcRenderer.on("onedrive-status", (_event, val) => callback(val)),
-  onOneDriveQuota: (callback) => ipcRenderer.on("onedrive-quota-updated", (_event, val) => callback(val)),
-  onStorageQuotaUpdated: (callback) => ipcRenderer.on("onedrive:quota-updated", (_event, val) => callback(val)),
   onBrowserUrl: (callback) => ipcRenderer.on("browser-url", (_event, val) => callback(val)),
   onLocalError: (callback) => ipcRenderer.on("local-error", (_event, val) => callback(val))
 });

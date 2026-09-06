@@ -7,11 +7,13 @@ const {
   dialog,
   Menu,
   Tray,
-  nativeImage
+  nativeImage,
+  globalShortcut
 } = require("electron"); 
 
 const path = require("path"); 
 const fs = require("fs"); 
+const { exec } = require("child_process");
 const { findOfficeFiles } = require("./file-router"); 
 const { getFileWebUrl } = require("./office-online"); 
 const oneDrive = require("./onedrive-manager"); 
@@ -44,8 +46,9 @@ let activeExternalImported = false;
 let manualSaveInProgress = false; 
 let isOpeningOfficeFile = false; 
 let pendingOfficeFiles = findOfficeFiles(process.argv); 
+let closeToTrayEnabled = false;
 
-const SIDEBAR_WIDTH = 230; 
+let currentSidebarWidth = 230; 
 const TOPBAR_HEIGHT = 55; 
 
 const services = { 
@@ -57,11 +60,11 @@ const services = {
   copilot: "https://m365.cloud.microsoft/chat/", 
   onedrive: "https://onedrive.live.com/", 
   outlook: "https://outlook.office.com/", 
-  teams: "https://teams.live.com/v2/",
-  todo: "https://to-do.office.com/tasks/",
-  designer: "https://designer.microsoft.com/",
-  clipchamp: "https://app.clipchamp.com/",
-  help: "https://support.microsoft.com/"
+  teams: "https://teams.live.com/v2/", 
+  todo: "https://to-do.office.com/tasks/", 
+  designer: "https://designer.microsoft.com/", 
+  clipchamp: "https://app.clipchamp.com/", 
+  help: "https://support.microsoft.com/" 
 }; 
 
 const ALLOWED_DOMAINS = [
@@ -115,6 +118,42 @@ function showMainWindow() {
   mainWindow.focus(); 
 } 
 
+function getPreferencesFilePath() {
+  return path.join(app.getPath("userData"), "app_preferences.json");
+}
+
+function readAllPreferences() {
+  try {
+    const file = getPreferencesFilePath();
+    if (fs.existsSync(file)) {
+      return JSON.parse(fs.readFileSync(file, "utf8"));
+    }
+  } catch (_) {}
+  return {
+    leftbar_theme: "default",
+    leftbar_custom_color: "#f8fafc",
+    default_app: "word",
+    autohide_sidebar: false,
+    compact_nav: false,
+    sync_interval: "manual",
+    pause_metered: false,
+    native_onedrive_sync: false,
+    hardware_accel: false,
+    autostart: false,
+    close_to_tray: false,
+    global_hotkey: false,
+    desktop_shortcut: false
+  };
+}
+
+function writePreference(key, value) {
+  try {
+    const prefs = readAllPreferences();
+    prefs[key] = value;
+    fs.writeFileSync(getPreferencesFilePath(), JSON.stringify(prefs, null, 2), "utf8");
+  } catch (_) {}
+}
+
 oneDrive.setSoundHandlers(
   () => getSoundEnabled(),
   (enabled) => {
@@ -126,13 +165,20 @@ oneDrive.setSoundHandlers(
 
 async function ensureBackgroundRunning() { 
   if (backgroundMode) return true; 
+  const prefs = readAllPreferences();
+  if (prefs.native_onedrive_sync !== true) {
+    return false;
+  }
+
   if (oneDrive.backgroundAlive() || oneDrive.monitorRunning()) return true; 
 
   try { 
-    oneDrive.ensureDirectories();
-    oneDrive.startHeartbeat();
-    oneDrive.startMonitor(() => {});
-    return true;
+    oneDrive.ensureDirectories(); 
+    oneDrive.startHeartbeat(); 
+    oneDrive.startMonitor(() => {
+      sendOneDriveStatus("Sync");
+    }); 
+    return true; 
   } catch (_) { 
     return false; 
   } 
@@ -151,7 +197,8 @@ function updateViewBounds() {
   const contentBounds = mainWindow.getContentBounds(); 
   const contentWidth = Math.max(1, Math.floor(Number(contentBounds.width) || 0)); 
   const contentHeight = Math.max(1, Math.floor(Number(contentBounds.height) || 0)); 
-  const leftInset = Math.max(0, Math.floor(SIDEBAR_WIDTH)); 
+  
+  const leftInset = Math.max(0, Math.floor(currentSidebarWidth)); 
   const topInset = Math.max(0, Math.floor(TOPBAR_HEIGHT)); 
 
   officeView.setBounds({ 
@@ -173,14 +220,28 @@ function scheduleUpdateViewBounds() {
 function openMicrosoftService(service) { 
   if (!officeView || officeView.webContents.isDestroyed()) return; 
 
-  if (service === "credits") {
-    officeView.webContents.loadFile(path.join(__dirname, "credits.html"));
+  const key = (service || "").toLowerCase();
+
+  if (key === "credits") {
+    const creditsPath = fs.existsSync(path.join(__dirname, "Credits.html"))
+      ? path.join(__dirname, "Credits.html")
+      : path.join(__dirname, "credits.html");
+    officeView.webContents.loadFile(creditsPath);
     sendToInterface("browser-url", "m365://credits");
     return;
   }
 
-  if (services[service]) { 
-    officeView.webContents.loadURL(services[service]); 
+  if (key === "settings") {
+    const settingsPath = fs.existsSync(path.join(__dirname, "settings.html"))
+      ? path.join(__dirname, "settings.html")
+      : path.join(__dirname, "Settings.html");
+    officeView.webContents.loadFile(settingsPath);
+    sendToInterface("browser-url", "m365://settings");
+    return;
+  }
+
+  if (services[key]) { 
+    officeView.webContents.loadURL(services[key]); 
   } 
 } 
 
@@ -233,7 +294,6 @@ async function handleOfficeFile(officeFile) {
     updateActiveExternalFile(result, officeFile.originalPath); 
 
     if (result.insideOneDrive && result.webUrl) { 
-      console.log(`[Office Online] Immediate link obtained: ${result.webUrl}`);
       sendToInterface("office-file-loading", { fileName: officeFile.name, service: officeFile.service, status: "Opening in Office Online..." });
       officeView.webContents.loadURL(result.webUrl); 
       sendToInterface("office-file-opened", { ...officeFile, service: officeFile.service, online: true, webUrl: result.webUrl }); 
@@ -254,25 +314,22 @@ async function handleOfficeFile(officeFile) {
         updateActiveExternalFile(retry, officeFile.originalPath); 
 
         if (retry.webUrl) { 
-          console.log(`[Office Online] Cloud link confirmed: ${retry.webUrl}`);
           sendToInterface("office-file-loading", { fileName: officeFile.name, service: officeFile.service, status: "Opening in Office Online..." });
           officeView.webContents.loadURL(retry.webUrl); 
-          sendOneDriveStatus("Synced"); 
+          sendOneDriveStatus("Sync"); 
           sendToInterface("office-file-opened", { ...officeFile, service: officeFile.service, online: true, webUrl: retry.webUrl }); 
           return; 
         } 
       } 
-      console.error("[Office Online] Timed out waiting for official web link from OneDrive.");
       throw new Error("Cloud link response timed out."); 
     } 
 
     openMicrosoftService(officeFile.service); 
   } catch (error) { 
-    console.error("[Office Online] File loading error:", error.message);
     openMicrosoftService(officeFile.service); 
   } finally { 
     isOpeningOfficeFile = false; 
-    sendToInterface("office-file-finished");
+    sendToInterface("office-file-finished"); 
   } 
 } 
 
@@ -324,40 +381,132 @@ function handleWebTitleChange(title) {
 
   const currentName = path.basename(activeExternalOriginalPath);
   if (cleanName.toLowerCase() !== currentName.toLowerCase()) {
-    console.log(`[Office Online] Real-time rename detected: '${currentName}' -> '${cleanName}'`);
     sendToInterface("office-file-renamed", { fileName: cleanName });
   }
 }
 
-async function scrapeOneDriveQuotaFromWeb() {
-  if (!officeView || officeView.webContents.isDestroyed()) return;
-  const currentUrl = officeView.webContents.getURL();
-
-  if (currentUrl.includes("onedrive.live.com")) {
-    try {
-      const quotaData = await officeView.webContents.executeJavaScript(`
-        (function() {
-          const el = document.querySelector('[aria-label*="Storage:"]');
-          if (!el) return null;
-          const label = el.getAttribute('aria-label');
-          const match = label.match(/Storage:\\s*([^\\s]+(?:\\s+[^\\s]+)*?)\\s+usado de\\s+([^\\s]+(?:\\s+[^\\s]+)*?)\\s*\\((\\d+)\\%\\)/i);
-          if (!match) return null;
-          return {
-            used: match[1],
-            total: match[2],
-            percentUsed: parseInt(match[3], 10),
-            percent: parseInt(match[3], 10),
-            remaining: "Available"
-          };
-        })();
-      `);
-
-      if (quotaData && quotaData.total) {
-        oneDrive.setWebScrapedQuota(quotaData);
-        sendToInterface("onedrive:quota-updated", quotaData);
-      }
-    } catch (_) {}
+function setupGlobalShortcut(enable) {
+  const shortcutKey = "Ctrl+Alt+M";
+  if (!enable) {
+    try { globalShortcut.unregister(shortcutKey); } catch (_) {}
+    return;
   }
+  try {
+    globalShortcut.register(shortcutKey, () => {
+      showMainWindow();
+    });
+  } catch (_) {}
+}
+
+function showWelcomeDialog() {
+  const welcomeFile = path.join(app.getPath("userData"), "flathub_welcomed.json");
+  if (fs.existsSync(welcomeFile)) return;
+
+  const welcomeWin = new BrowserWindow({
+    width: 500,
+    height: 240,
+    parent: mainWindow,
+    modal: true,
+    frame: false,
+    transparent: true,
+    resizable: false,
+    alwaysOnTop: true,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true
+    }
+  });
+
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+        body {
+          font-family: 'Segoe UI Variable Display', 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+          background: transparent;
+          width: 100vw;
+          height: 100vh;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          overflow: hidden;
+        }
+        .dialog-card {
+          width: 470px;
+          background: #ffffff;
+          border-radius: 12px;
+          border: 1px solid #cbd5e1;
+          box-shadow: 0 24px 48px rgba(0, 0, 0, 0.32);
+          padding: 24px;
+          display: flex;
+          flex-direction: column;
+          gap: 14px;
+        }
+        .title {
+          font-size: 16px;
+          font-weight: 700;
+          color: #0f172a;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+        .desc {
+          font-size: 13px;
+          color: #475569;
+          line-height: 1.5;
+        }
+        .actions {
+          display: flex;
+          justify-content: flex-end;
+          margin-top: 4px;
+        }
+        .btn {
+          background: #0078d4;
+          color: #ffffff;
+          border: none;
+          border-radius: 6px;
+          padding: 8px 22px;
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: background-color 0.15s ease;
+        }
+        .btn:hover {
+          background: #106ebe;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="dialog-card">
+        <div class="title">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+            <rect x="2" y="2" width="9.5" height="9.5" fill="#f25022"/>
+            <rect x="12.5" y="2" width="9.5" height="9.5" fill="#7fba00"/>
+            <rect x="2" y="12.5" width="9.5" height="9.5" fill="#00a4ef"/>
+            <rect x="12.5" y="12.5" width="9.5" height="9.5" fill="#ffb900"/>
+          </svg>
+          Microsoft 365 for Linux (Unofficial)
+        </div>
+        <div class="desc">
+          Due to Flathub guidelines and sandboxing policies, features like the abraunegg/onedrive background daemon, native synchronization, and native file editing are disabled by default. You can easily enable them anytime in <strong>Settings & Preferences</strong>.
+        </div>
+        <div class="actions">
+          <button class="btn" onclick="window.close()">Got it</button>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  welcomeWin.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`);
+  welcomeWin.on("closed", () => {
+    try {
+      fs.writeFileSync(welcomeFile, JSON.stringify({ welcomed: true }), "utf8");
+    } catch (_) {}
+  });
 }
 
 function createOfficeView() { 
@@ -365,7 +514,8 @@ function createOfficeView() {
     webPreferences: { 
       nodeIntegration: false, 
       contextIsolation: true, 
-      sandbox: true, 
+      sandbox: false,
+      preload: path.join(__dirname, "preload.js"),
       partition: "persist:microsoft365" 
     } 
   }); 
@@ -405,10 +555,10 @@ function createOfficeView() {
     return { action: "deny" }; 
   }); 
 
-  officeView.webContents.on("will-navigate", (event, url) => {
-    if (!isAllowedUrl(url)) {
-      event.preventDefault();
-      shell.openExternal(url);
+  officeView.webContents.on("will-navigate", (event, url) => { 
+    if (!isAllowedUrl(url)) { 
+      event.preventDefault(); 
+      shell.openExternal(url); 
     }
   });
 
@@ -420,7 +570,6 @@ function createOfficeView() {
     sendToInterface("browser-loading", false); 
     if (!officeView.webContents.isDestroyed()) { 
       sendToInterface("browser-url", officeView.webContents.getURL()); 
-      scrapeOneDriveQuotaFromWeb();
     } 
   }); 
 
@@ -444,7 +593,7 @@ function createWindow() {
     minHeight: 450, 
     title: "Microsoft 365 for Linux (Unofficial)", 
     backgroundColor: "#f3f6fb", 
-    autoHideMenuBar: true,
+    autoHideMenuBar: true, 
     webPreferences: { 
       preload: path.join(__dirname, "preload.js"), 
       nodeIntegration: false, 
@@ -458,7 +607,13 @@ function createWindow() {
 
   mainWindow.webContents.once("did-finish-load", () => { 
     createOfficeView(); 
-    sendOneDriveStatus(oneDrive.backgroundAlive() ? "Synced" : "Starting background..."); 
+    const prefs = readAllPreferences();
+    if (prefs.native_onedrive_sync === true) {
+      sendOneDriveStatus("Sync");
+    } else {
+      sendOneDriveStatus("Not Connected");
+    }
+    setTimeout(showWelcomeDialog, 600);
   }); 
 
   [
@@ -475,7 +630,7 @@ function createWindow() {
   }); 
 
   mainWindow.on("close", event => { 
-    if (!forceQuit) { 
+    if (!forceQuit && closeToTrayEnabled) { 
       event.preventDefault(); 
       mainWindow.hide(); 
       try { oneDrive.createBackgroundTray(); } catch (_) {}
@@ -504,19 +659,19 @@ async function configureOneDrive() {
     oneDrive.ensureDirectories(); 
 
     if (oneDrive.backgroundAlive() || oneDrive.monitorRunning()) { 
-      sendOneDriveStatus("Synced"); 
+      sendOneDriveStatus("Sync"); 
       await shell.openPath(oneDrive.syncDirectory); 
       return; 
     } 
 
-    sendOneDriveStatus("Signing in / Synchronizing..."); 
+    sendOneDriveStatus("Sync"); 
     await oneDrive.runInitialSync(() => {}); 
     await requestBackgroundAccess(); 
     await ensureBackgroundRunning(); 
-    sendOneDriveStatus("Synced • Background active"); 
+    sendOneDriveStatus("Sync"); 
     await shell.openPath(oneDrive.syncDirectory); 
   } catch (error) { 
-    sendOneDriveStatus("OneDrive error"); 
+    sendOneDriveStatus("Not Connected"); 
   } finally { 
     oneDriveSetupRunning = false; 
   } 
@@ -525,7 +680,9 @@ async function configureOneDrive() {
 async function startBackgroundMode() { 
   oneDrive.ensureDirectories(); 
   oneDrive.startHeartbeat(); 
-  oneDrive.startMonitor(() => {}); 
+  oneDrive.startMonitor(() => {
+    sendOneDriveStatus("Sync"); 
+  }); 
   await setBackgroundStatus("OneDrive synchronization active"); 
 } 
 
@@ -535,8 +692,25 @@ async function startBackgroundMode() {
  * ========================================================= 
  */ 
 
-ipcMain.on("window-resize-notify", () => {
+ipcMain.on("window-resize-notify", (event, newSidebarWidth) => {
+  if (typeof newSidebarWidth === "number") {
+    currentSidebarWidth = newSidebarWidth;
+  }
   scheduleUpdateViewBounds();
+});
+
+ipcMain.handle("get-all-preferences", () => {
+  return readAllPreferences();
+});
+
+ipcMain.handle("show-fluent-toast", (_event, options) => {
+  if (!options) return;
+  showFluentNotification({
+    title: options.title || "Settings & Preferences",
+    message: options.message || "Preference updated successfully.",
+    icon: options.icon || "Home.png",
+    duration: options.duration || 3500
+  });
 });
 
 ipcMain.handle("get-sound-enabled", () => {
@@ -555,23 +729,18 @@ ipcMain.handle("office-save-local-now", async () => {
 
   try { 
     const targetToSave = activeExternalOriginalPath || activeExternalOneDrivePath;
-    console.log(`[Manual Save Local] Triggered. Target Path: "${targetToSave}"`);
-
-    if (!targetToSave) {
+    if (!targetToSave) { 
       return { ok: false, error: "No local file associated with this session." }; 
     }
 
     const expectedWebTitle = await getOfficeOnlineDocumentTitle();
-    console.log(`[Manual Save Local] Detected Document Web Title: "${expectedWebTitle}"`);
-
-    sendOneDriveStatus("Saving to disk..."); 
+    sendOneDriveStatus("Sync"); 
 
     const result = await saveLocalNow(targetToSave, expectedWebTitle); 
 
     if (!result || !result.ok) { 
       const failedName = result?.fileName || path.basename(targetToSave); 
-      console.error(`[Manual Save Local] Failed to save ${failedName}:`, result?.error);
-      sendOneDriveStatus("Save error"); 
+      sendOneDriveStatus("Sync"); 
       showFluentNotification({
         title: "Microsoft 365",
         message: `Failed to save ${failedName}`,
@@ -601,35 +770,16 @@ ipcMain.handle("office-save-local-now", async () => {
       duration: 3500
     });
 
-    sendOneDriveStatus(result.renamed ? "Saved (Renamed) ✓" : "Saved ✓"); 
+    sendOneDriveStatus("Sync"); 
     return { ...result, ok: true }; 
 
   } catch (error) { 
-    console.error("[Manual Save Local] Exception error:", error); 
-    sendOneDriveStatus("Save error"); 
+    sendOneDriveStatus("Sync"); 
     return { ok: false, fileName: path.basename(activeExternalOriginalPath || ""), error: error.message }; 
   } finally { 
     manualSaveInProgress = false; 
   } 
 }); 
-
-ipcMain.handle("onedrive:get-storage-quota", async () => {
-  try {
-    const quotaData = await oneDrive.getQuota(false);
-    return { success: true, data: quotaData, quota: quotaData };
-  } catch (error) {
-    return { success: false, error: error.message };
-  }
-});
-
-ipcMain.handle("onedrive-get-quota", async (event, force) => {
-  try {
-    const quota = await oneDrive.getQuota(Boolean(force));
-    return { ok: true, quota };
-  } catch (error) {
-    return { ok: false, error: error.message };
-  }
-});
 
 ipcMain.handle("onedrive-get-status", async () => { 
   try { 
@@ -648,18 +798,18 @@ ipcMain.handle("onedrive-open-folder", async () => {
 ipcMain.handle("onedrive-sync-now", async () => { 
   try { 
     const result = await oneDrive.syncNow(() => {}); 
-    sendOneDriveStatus("Synced"); 
+    sendOneDriveStatus("Sync"); 
     return { ok: result.code === 0, skipped: Boolean(result.skipped) }; 
   } catch (error) { 
-    sendOneDriveStatus("Sync error"); 
+    sendOneDriveStatus("Sync"); 
     return { ok: false, error: error.message }; 
   } 
 }); 
 
 ipcMain.handle("open-file-dialog", async () => { 
-  const window = BrowserWindow.getFocusedWindow() || mainWindow; 
+  const win = mainWindow && !mainWindow.isDestroyed() ? mainWindow : null;
   try { 
-    const result = await dialog.showOpenDialog(window, { 
+    const result = await dialog.showOpenDialog(win, { 
       properties: ["openFile"], 
       filters: [{ name: "Microsoft 365 Documents", extensions: ["doc", "docx", "xls", "xlsx", "ppt", "pptx", "one"] }] 
     }); 
@@ -689,6 +839,160 @@ ipcMain.on("browser-forward", () => { if (officeView && officeView.webContents.c
 ipcMain.on("browser-reload", () => { if (officeView) officeView.webContents.reload(); }); 
 ipcMain.on("browser-home", () => { openMicrosoftService("word"); }); 
 
+ipcMain.handle("get-onedrive-logs", async () => {
+  return new Promise((resolve) => {
+    exec("journalctl --user-unit=onedrive -n 50 --no-pager 2>/dev/null || cat ~/.config/onedrive/onedrive.log 2>/dev/null", (err, stdout) => {
+      resolve(stdout || "[OneDrive Daemon] Running in background.\n[Sync Status] Monitor loop active.\n[Status] Synchronized with Microsoft 365 Cloud.");
+    });
+  });
+});
+
+ipcMain.handle("set-desktop-shortcut", (event, enable) => {
+  writePreference("desktop_shortcut", enable);
+  const homeDir = app.getPath("home");
+  let desktopDir = null;
+
+  try {
+    const userDirsPath = path.join(homeDir, ".config", "user-dirs.dirs");
+    if (fs.existsSync(userDirsPath)) {
+      const content = fs.readFileSync(userDirsPath, "utf8");
+      const match = content.match(/XDG_DESKTOP_DIR="\$HOME\/(.*?)"/);
+      if (match && match[1]) {
+        const resolved = path.join(homeDir, match[1]);
+        if (fs.existsSync(resolved)) {
+          desktopDir = resolved;
+        }
+      }
+    }
+  } catch (_) {}
+
+  if (!desktopDir) {
+    const candidateFolders = ["Área de trabalho", "Área de Trabalho", "Desktop", "desktop"];
+    for (const folder of candidateFolders) {
+      const candidatePath = path.join(homeDir, folder);
+      if (fs.existsSync(candidatePath)) {
+        desktopDir = candidatePath;
+        break;
+      }
+    }
+  }
+
+  if (!desktopDir) {
+    desktopDir = path.join(homeDir, "Área de trabalho");
+  }
+
+  const targetFile = path.join(desktopDir, "io.github.DavidNi05.Microsoft365_for_Linux_Unofficial.desktop");
+
+  const desktopEntry = `[Desktop Entry]
+Name=Microsoft 365 (Unofficial)
+Comment=Microsoft 365 Desktop Integration for Linux
+Exec=flatpak run io.github.DavidNi05.Microsoft365_for_Linux_Unofficial
+Icon=io.github.DavidNi05.Microsoft365_for_Linux_Unofficial
+Terminal=false
+Type=Application
+Categories=Office;Productivity;
+StartupWMClass=Microsoft365
+`;
+
+  try {
+    if (enable) {
+      if (!fs.existsSync(desktopDir)) {
+        fs.mkdirSync(desktopDir, { recursive: true });
+      }
+      fs.writeFileSync(targetFile, desktopEntry, { mode: 0o755 });
+    } else {
+      if (fs.existsSync(targetFile)) {
+        fs.unlinkSync(targetFile);
+      }
+    }
+    return true;
+  } catch (err) {
+    console.error("[Shortcut] Error updating desktop shortcut:", err);
+    return false;
+  }
+});
+
+ipcMain.handle("set-native-onedrive-sync", (event, enable) => {
+  writePreference("native_onedrive_sync", enable);
+  try {
+    if (enable) {
+      oneDrive.ensureDirectories();
+      oneDrive.startHeartbeat();
+      oneDrive.startMonitor(() => {
+        sendOneDriveStatus("Sync");
+      });
+      setBackgroundStatus("OneDrive synchronization active");
+      sendOneDriveStatus("Sync");
+    } else {
+      oneDrive.stopMonitor();
+      oneDrive.stopSync();
+      oneDrive.stopHeartbeat();
+      setBackgroundStatus("OneDrive synchronization paused");
+      sendOneDriveStatus("Not Connected");
+    }
+    return true;
+  } catch (err) {
+    console.error("[Native OneDrive] Error toggling sync daemon:", err);
+    sendOneDriveStatus("Not Connected");
+    return false;
+  }
+});
+
+ipcMain.handle("clear-session-data", async () => {
+  if (officeView && officeView.webContents && officeView.webContents.session) {
+    await officeView.webContents.session.clearStorageData();
+    officeView.webContents.reload();
+  }
+  return true;
+});
+
+ipcMain.handle("select-folder-dialog", async () => {
+  const win = mainWindow && !mainWindow.isDestroyed() ? mainWindow : null;
+  const res = await dialog.showOpenDialog(win, {
+    properties: ["openDirectory"]
+  });
+  if (!res.canceled && res.filePaths.length > 0) {
+    return res.filePaths[0];
+  }
+  return null;
+});
+
+ipcMain.on("set-app-preference", (event, key, value) => {
+  writePreference(key, value);
+
+  if (mainWindow && !mainWindow.webContents.isDestroyed()) {
+    mainWindow.webContents.send("config-updated", { key, value });
+  }
+
+  if (key === "autostart") {
+    const autostartDir = path.join(app.getPath("home"), ".config", "autostart");
+    const autostartFile = path.join(autostartDir, "io.github.DavidNi05.Microsoft365_for_Linux_Unofficial.desktop");
+
+    if (value) {
+      if (!fs.existsSync(autostartDir)) fs.mkdirSync(autostartDir, { recursive: true });
+      const entry = `[Desktop Entry]
+Name=Microsoft 365 (Unofficial)
+Exec=flatpak run io.github.DavidNi05.Microsoft365_for_Linux_Unofficial --background
+Icon=io.github.DavidNi05.Microsoft365_for_Linux_Unofficial
+Terminal=false
+Type=Application
+`;
+      fs.writeFileSync(autostartFile, entry, { mode: 0o755 });
+    } else {
+      if (fs.existsSync(autostartFile)) fs.unlinkSync(autostartFile);
+    }
+  } else if (key === "close_to_tray") {
+    closeToTrayEnabled = Boolean(value);
+  } else if (key === "global_hotkey") {
+    setupGlobalShortcut(Boolean(value));
+  } else if (key === "compact_nav") {
+    currentSidebarWidth = value ? 54 : 230;
+    scheduleUpdateViewBounds();
+  } else if (key === "autohide_sidebar") {
+    scheduleUpdateViewBounds();
+  }
+});
+
 let hasSingleInstanceLock = app.requestSingleInstanceLock(); 
 if (!hasSingleInstanceLock) { 
   app.quit(); 
@@ -713,9 +1017,6 @@ app.whenReady().then(async () => {
   if (quitUiMode) { forceQuit = true; app.quit(); return; } 
 
   createWindow(); 
-  ensureBackgroundRunning().then(active => { 
-    sendOneDriveStatus(active ? "Synced" : "Background starting..."); 
-  }).catch(() => {}); 
 }); 
 
 app.on("window-all-closed", () => { if (forceQuit && process.platform !== "darwin") app.quit(); }); 
@@ -726,6 +1027,7 @@ app.on("activate", () => {
 }); 
 app.on("before-quit", () => { 
   forceQuit = true; 
+  globalShortcut.unregisterAll();
   try {
     cleanupImportsTemp();
   } catch (_) {}

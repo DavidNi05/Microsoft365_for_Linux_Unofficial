@@ -8,6 +8,9 @@
   <style>
     :root {
       --current-accent: #185abd;
+      --leftbar-bg: #f8fafc;
+      --leftbar-text: #334155;
+      --leftbar-title: #64748b;
       --current-accent-bg: rgba(24, 90, 189, 0.08);
       --current-accent-border: rgba(24, 90, 189, 0.25);
     }
@@ -29,18 +32,100 @@
       user-select: none;
     }
 
-    /* =========================================================
-       Fluent 2 Sidebar (230px)
-       ========================================================= */
+    .hover-trigger-zone {
+      position: fixed;
+      left: 0;
+      top: 0;
+      width: 14px;
+      height: 100vh;
+      z-index: 9999;
+      pointer-events: auto;
+      display: none;
+    }
+
+    body.autohide-enabled .hover-trigger-zone {
+      display: block;
+    }
+
     .sidebar {
       width: 230px;
       height: 100vh;
-      background-color: #f8fafc;
+      background-color: var(--leftbar-bg);
       border-right: 1px solid #e2e8f0;
       display: flex;
       flex-direction: column;
       flex-shrink: 0;
       z-index: 10;
+      transition: background-color 0.25s ease;
+    }
+
+    .sidebar.dark-themed-sidebar {
+      --leftbar-text: #ffffff;
+      --leftbar-title: rgba(255, 255, 255, 0.85);
+      border-right-color: rgba(255, 255, 255, 0.15);
+    }
+    .sidebar.dark-themed-sidebar .brand-title,
+    .sidebar.dark-themed-sidebar .brand-subtitle,
+    .sidebar.dark-themed-sidebar .section-title,
+    .sidebar.dark-themed-sidebar .nav-label {
+      color: #ffffff !important;
+    }
+    .sidebar.dark-themed-sidebar .brand-header,
+    .sidebar.dark-themed-sidebar .sidebar-footer {
+      background-color: rgba(0, 0, 0, 0.15) !important;
+      border-color: rgba(255, 255, 255, 0.15) !important;
+    }
+    .sidebar.dark-themed-sidebar .nav-item {
+      color: #ffffff !important;
+    }
+    .sidebar.dark-themed-sidebar .nav-item:hover {
+      background-color: rgba(255, 255, 255, 0.15) !important;
+      color: #ffffff !important;
+    }
+    .sidebar.dark-themed-sidebar .nav-item.active {
+      background-color: rgba(255, 255, 255, 0.25) !important;
+      color: #ffffff !important;
+      border-color: rgba(255, 255, 255, 0.35) !important;
+    }
+
+    .sidebar.compact-mode {
+      width: 54px !important;
+      min-width: 54px !important;
+      padding: 0 !important;
+    }
+
+    .sidebar.compact-mode .brand-title-group,
+    .sidebar.compact-mode .section-title,
+    .sidebar.compact-mode .nav-label {
+      display: none !important;
+      visibility: hidden !important;
+      opacity: 0 !important;
+      width: 0 !important;
+      height: 0 !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      overflow: hidden !important;
+    }
+
+    .sidebar.compact-mode .brand-header {
+      justify-content: center !important;
+      padding: 0 !important;
+    }
+
+    .sidebar.compact-mode .nav-scrollable {
+      padding: 8px 4px !important;
+      gap: 6px !important;
+    }
+
+    .sidebar.compact-mode .nav-item {
+      justify-content: center !important;
+      padding: 10px 0 !important;
+      gap: 0 !important;
+    }
+
+    .sidebar.compact-mode .sidebar-footer {
+      padding: 8px 4px !important;
+      align-items: center !important;
     }
 
     .brand-header {
@@ -50,7 +135,7 @@
       padding: 0 16px;
       gap: 12px;
       border-bottom: 1px solid #e2e8f0;
-      background-color: #ffffff;
+      background-color: rgba(255, 255, 255, 0.5);
     }
 
     .brand-logo {
@@ -112,7 +197,7 @@
     .section-title {
       font-size: 11px;
       font-weight: 700;
-      color: #64748b;
+      color: var(--leftbar-title);
       text-transform: uppercase;
       letter-spacing: 0.6px;
       padding: 12px 10px 6px 10px;
@@ -128,7 +213,7 @@
       border: 1px solid transparent;
       border-radius: 8px;
       background: transparent;
-      color: #334155;
+      color: var(--leftbar-text);
       font-size: 14px;
       font-weight: 500;
       cursor: pointer;
@@ -151,7 +236,7 @@
 
     .nav-item:hover {
       background-color: rgba(0, 0, 0, 0.04);
-      color: #0f172a;
+      color: var(--leftbar-text);
     }
 
     .nav-item:active {
@@ -199,80 +284,15 @@
       text-overflow: ellipsis;
     }
 
-    /* Card de Cota Fluent */
-    .onedrive-quota-card {
-      margin: 10px 4px 12px 4px;
-      padding: 12px 14px;
-      background-color: #ffffff;
-      border: 1px solid #e2e8f0;
-      border-radius: 8px;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
-    }
-
-    .quota-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 7px;
-      font-size: 11.5px;
-    }
-
-    .quota-title {
-      font-weight: 600;
-      color: #1e293b;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .quota-numbers {
-      color: #64748b;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      font-size: 11px;
-      font-weight: 600;
-    }
-
-    .quota-track {
-      width: 100%;
-      height: 6px;
-      background-color: #f1f5f9;
-      border-radius: 3px;
-      overflow: hidden;
-      margin-bottom: 6px;
-    }
-
-    .quota-fill {
-      height: 100%;
-      width: 0%;
-      background: linear-gradient(90deg, #0078d4, #0086f0);
-      border-radius: 3px;
-      transition: width 0.6s cubic-bezier(0.1, 0.9, 0.2, 1), background 0.3s ease;
-    }
-
-    .quota-fill.warning {
-      background: linear-gradient(90deg, #d83b01, #ea4300);
-    }
-
-    .quota-footer {
-      display: flex;
-      justify-content: flex-end;
-      font-size: 10.5px;
-      color: #64748b;
-      font-weight: 500;
-    }
-
     .sidebar-footer {
       padding: 8px 10px;
       border-top: 1px solid #e2e8f0;
       display: flex;
       flex-direction: column;
       gap: 3px;
-      background-color: #f8fafc;
+      background-color: rgba(248, 250, 252, 0.5);
     }
 
-    /* =========================================================
-       Fluent 2 Topbar com Cores Sincronizadas
-       ========================================================= */
     .main-wrapper {
       flex: 1;
       display: flex;
@@ -291,7 +311,7 @@
       gap: 16px;
       position: relative;
       z-index: 5;
-      transition: background-color 0.25s ease;
+      transition: background-color 0.25s ease, color 0.2s ease, border-color 0.2s ease;
     }
 
     .nav-controls {
@@ -392,7 +412,7 @@
       width: 7px;
       height: 7px;
       border-radius: 50%;
-      background-color: #ffffff;
+      background-color: #f87171;
     }
 
     .status-text {
@@ -405,6 +425,7 @@
     .status-badge.synced .status-dot { background-color: #4ade80; }
     .status-badge.syncing .status-dot { background-color: #facc15; animation: pulse 1s infinite alternate; }
     .status-badge.error .status-dot { background-color: #f87171; }
+    .status-badge.disconnected .status-dot { background-color: #94a3b8; }
 
     @keyframes pulse {
       0% { opacity: 0.4; }
@@ -447,9 +468,6 @@
       fill: currentColor;
     }
 
-    /* =========================================================
-       Fluent Floating Toast
-       ========================================================= */
     .fluent-toast {
       position: fixed;
       top: 68px;
@@ -519,8 +537,10 @@
 </head>
 <body>
 
+  <div class="hover-trigger-zone" id="hoverTriggerZone"></div>
+
   <!-- ================= Sidebar Fluent ================= -->
-  <aside class="sidebar">
+  <aside class="sidebar" id="appSidebar">
     <div class="brand-header">
       <div class="brand-logo">
         <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
@@ -539,137 +559,79 @@
     <div class="nav-scrollable">
       <div class="section-title">Office Apps</div>
 
-      <!-- Word (Inicia ativo por padrão) -->
-      <button class="nav-item active" data-service="word" data-title="Microsoft Word" data-color="#185abd">
-        <span class="nav-icon">
-          <img src="assets/icons/Word.png" alt="Word">
-        </span>
+      <button class="nav-item active" data-service="word" data-title="Microsoft Word" data-color="#185abd" title="Word">
+        <span class="nav-icon"><img src="assets/icons/Word.png" alt="Word"></span>
         <span class="nav-label">Word</span>
       </button>
 
-      <!-- Excel -->
-      <button class="nav-item" data-service="excel" data-title="Microsoft Excel" data-color="#107c41">
-        <span class="nav-icon">
-          <img src="assets/icons/Excel.png" alt="Excel">
-        </span>
+      <button class="nav-item" data-service="excel" data-title="Microsoft Excel" data-color="#107c41" title="Excel">
+        <span class="nav-icon"><img src="assets/icons/Excel.png" alt="Excel"></span>
         <span class="nav-label">Excel</span>
       </button>
 
-      <!-- PowerPoint -->
-      <button class="nav-item" data-service="powerpoint" data-title="Microsoft PowerPoint" data-color="#d83b01">
-        <span class="nav-icon">
-          <img src="assets/icons/Powerpoint.png" alt="PowerPoint">
-        </span>
+      <button class="nav-item" data-service="powerpoint" data-title="Microsoft PowerPoint" data-color="#d83b01" title="PowerPoint">
+        <span class="nav-icon"><img src="assets/icons/Powerpoint.png" alt="PowerPoint"></span>
         <span class="nav-label">PowerPoint</span>
       </button>
 
-      <!-- OneNote -->
-      <button class="nav-item" data-service="onenote" data-title="Microsoft OneNote" data-color="#7719aa">
-        <span class="nav-icon">
-          <img src="assets/icons/OneNote.png" alt="OneNote">
-        </span>
+      <button class="nav-item" data-service="onenote" data-title="Microsoft OneNote" data-color="#7719aa" title="OneNote">
+        <span class="nav-icon"><img src="assets/icons/OneNote.png" alt="OneNote"></span>
         <span class="nav-label">OneNote</span>
       </button>
 
-      <!-- Outlook -->
-      <button class="nav-item" data-service="outlook" data-title="Microsoft Outlook" data-color="#0078d4">
-        <span class="nav-icon">
-          <img src="assets/icons/Outlook.png" alt="Outlook">
-        </span>
+      <button class="nav-item" data-service="outlook" data-title="Microsoft Outlook" data-color="#0078d4" title="Outlook">
+        <span class="nav-icon"><img src="assets/icons/Outlook.png" alt="Outlook"></span>
         <span class="nav-label">Outlook</span>
       </button>
 
-      <!-- Teams -->
-      <button class="nav-item" data-service="teams" data-title="Microsoft Teams" data-color="#505ac9">
-        <span class="nav-icon">
-          <img src="assets/icons/Teams.png" alt="Teams">
-        </span>
+      <button class="nav-item" data-service="teams" data-title="Microsoft Teams" data-color="#505ac9" title="Teams">
+        <span class="nav-icon"><img src="assets/icons/Teams.png" alt="Teams"></span>
         <span class="nav-label">Teams</span>
       </button>
 
-      <!-- Copilot -->
-      <button class="nav-item" data-service="copilot" data-title="Microsoft Copilot" data-color="#0f6cbd">
-        <span class="nav-icon">
-          <img src="assets/icons/Copilot.png" alt="Copilot">
-        </span>
+      <button class="nav-item" data-service="copilot" data-title="Microsoft Copilot" data-color="#0f6cbd" title="Copilot">
+        <span class="nav-icon"><img src="assets/icons/Copilot.png" alt="Copilot"></span>
         <span class="nav-label">Copilot</span>
       </button>
 
       <div class="section-title">Productivity & Creation</div>
 
-      <!-- To Do -->
-      <button class="nav-item" data-service="todo" data-title="Microsoft To Do" data-color="#2564cf">
-        <span class="nav-icon">
-          <img src="assets/icons/To%20Do.png" alt="To Do">
-        </span>
+      <button class="nav-item" data-service="todo" data-title="Microsoft To Do" data-color="#2564cf" title="To Do">
+        <span class="nav-icon"><img src="assets/icons/To%20Do.png" alt="To Do"></span>
         <span class="nav-label">To Do</span>
       </button>
 
-      <!-- Designer -->
-      <button class="nav-item" data-service="designer" data-title="Microsoft Designer" data-color="#bc1962">
-        <span class="nav-icon">
-          <img src="assets/icons/Designer.png" alt="Designer">
-        </span>
+      <button class="nav-item" data-service="designer" data-title="Microsoft Designer" data-color="#bc1962" title="Designer">
+        <span class="nav-icon"><img src="assets/icons/Designer.png" alt="Designer"></span>
         <span class="nav-label">Designer</span>
       </button>
 
-      <!-- Clipchamp -->
-      <button class="nav-item" data-service="clipchamp" data-title="Microsoft Clipchamp" data-color="#6b3ce9">
-        <span class="nav-icon">
-          <img src="assets/icons/Clipchamp.png" alt="Clipchamp">
-        </span>
+      <button class="nav-item" data-service="clipchamp" data-title="Microsoft Clipchamp" data-color="#6b3ce9" title="Clipchamp">
+        <span class="nav-icon"><img src="assets/icons/Clipchamp.png" alt="Clipchamp"></span>
         <span class="nav-label">Clipchamp</span>
       </button>
 
       <div class="section-title">Local & Cloud</div>
 
-      <!-- OneDrive Web -->
-      <button class="nav-item" data-service="onedrive" data-title="Microsoft OneDrive" data-color="#0078d4">
-        <span class="nav-icon">
-          <img src="assets/icons/OneDrive.png" alt="OneDrive Web">
-        </span>
+      <button class="nav-item" data-service="onedrive" data-title="Microsoft OneDrive" data-color="#0078d4" title="OneDrive Web">
+        <span class="nav-icon"><img src="assets/icons/OneDrive.png" alt="OneDrive Web"></span>
         <span class="nav-label">OneDrive Web</span>
       </button>
 
-      <!-- Open Local File -->
-      <button class="nav-item" id="btnOpenLocal" data-color="#475569">
-        <span class="nav-icon">
-          <img src="assets/icons/Open%20Local%20File.png" alt="Open Local File">
-        </span>
+      <button class="nav-item" id="btnOpenLocal" data-color="#475569" title="Open Local File" style="display: none;">
+        <span class="nav-icon"><img src="assets/icons/Open%20Local%20File.png" alt="Open Local File"></span>
         <span class="nav-label">Open Local File</span>
       </button>
 
-      <!-- Local OneDrive -->
-      <button class="nav-item" id="btnLocalOneDrive" data-color="#0078d4">
-        <span class="nav-icon">
-          <img src="assets/icons/OneDrive.png" alt="Local OneDrive">
-        </span>
+      <button class="nav-item" id="btnLocalOneDrive" data-color="#0078d4" title="Local OneDrive" style="display: none;">
+        <span class="nav-icon"><img src="assets/icons/OneDrive.png" alt="Local OneDrive"></span>
         <span class="nav-label">Local OneDrive</span>
       </button>
-
-      <!-- Card de Cota de Armazenamento Fluent -->
-      <div class="onedrive-quota-card" id="onedriveQuotaCard">
-        <div class="quota-header">
-          <span class="quota-title">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="#0078d4">
-              <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z"/>
-            </svg>
-            Cloud Storage
-          </span>
-          <span class="quota-numbers" id="quotaNumbers">23,5 GB / 1 TB</span>
-        </div>
-        <div class="quota-track">
-          <div class="quota-fill" id="quotaFill" style="width: 2%;"></div>
-        </div>
-        <div class="quota-footer">
-          <span id="quotaPercent">2% used (976,5 GB free)</span>
-        </div>
-      </div>
     </div>
 
-    <!-- Rodapé: Credits & Help -->
+    <!-- Rodapé: Credits & Settings -->
     <div class="sidebar-footer">
-      <button class="nav-item" data-service="credits" data-title="Credits" data-color="#64748b">
+      <button class="nav-item" data-service="credits" data-title="Credits" data-color="#64748b" title="Credits">
         <span class="nav-icon">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
             <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" fill="#e11d48"/>
@@ -677,21 +639,21 @@
         </span>
         <span class="nav-label">Credits</span>
       </button>
-      <button class="nav-item" data-service="help" data-title="Help & Support" data-color="#0078d4">
+      <button class="nav-item" data-service="settings" data-title="Settings & Preferences" data-color="#0078d4" title="Settings">
         <span class="nav-icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-            <circle cx="12" cy="12" r="10" fill="#0078d4"/>
-            <path d="M12 17h.01M12 14c0-1.5 1.5-2 2-3s0-2-1.5-2-2 1-2 1" stroke="#ffffff" stroke-width="2" stroke-linecap="round"/>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0078d4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
           </svg>
         </span>
-        <span class="nav-label">Help</span>
+        <span class="nav-label">Settings</span>
       </button>
     </div>
   </aside>
 
   <!-- ================= Layout Principal ================= -->
   <div class="main-wrapper">
-    <header class="topbar">
+    <header class="topbar" id="appTopbar">
       <div class="nav-controls">
         <button class="icon-button" id="btnBack" title="Back">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
@@ -712,7 +674,6 @@
       </div>
 
       <div class="topbar-actions">
-        <!-- Toggle de Som das Notificações Fluent -->
         <button class="icon-button" id="btnToggleSound" title="Toggle notification sound">
           <svg id="iconSoundOn" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
             <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
@@ -722,9 +683,9 @@
           </svg>
         </button>
 
-        <div class="status-badge" id="syncStatusBadge">
+        <div class="status-badge disconnected" id="syncStatusBadge">
           <span class="status-dot"></span>
-          <span class="status-text" id="syncStatusPill">OneDrive: Connecting...</span>
+          <span class="status-text" id="syncStatusPill">OneDrive: Not Connected</span>
         </div>
 
         <button class="action-btn primary" id="btnSaveLocal" title="Save open file to original folder">
@@ -752,6 +713,9 @@
   <script>
     document.addEventListener("DOMContentLoaded", () => {
       const navButtons = document.querySelectorAll(".nav-item[data-service]");
+      const appTopbar = document.getElementById("appTopbar");
+      const appSidebar = document.getElementById("appSidebar");
+      const hoverTriggerZone = document.getElementById("hoverTriggerZone");
       const topbarTitle = document.getElementById("topbarTitle");
       const topbarProgress = document.getElementById("topbarProgress");
       const syncStatusBadge = document.getElementById("syncStatusBadge");
@@ -761,36 +725,172 @@
       const toastTitle = document.getElementById("toastTitle");
       const toastStatus = document.getElementById("toastStatus");
 
-      const fillEl = document.getElementById("quotaFill");
-      const numbersEl = document.getElementById("quotaNumbers");
-      const percentEl = document.getElementById("quotaPercent");
-
       const btnToggleSound = document.getElementById("btnToggleSound");
       const iconSoundOn = document.getElementById("iconSoundOn");
       const iconSoundOff = document.getElementById("iconSoundOff");
 
       let toastTimeout = null;
+      let currentActiveServiceColor = "#185abd";
 
-      window.addEventListener("resize", () => {
-        window.electronAPI?.notifyResize?.();
-      });
-
-      function setAppAccentColor(color) {
-        if (!color) return;
-        document.documentElement.style.setProperty("--current-accent", color);
+      function updateLocalButtonsVisibility(enabled) {
+        const btnOpenLocal = document.getElementById("btnOpenLocal");
+        const btnLocalOneDrive = document.getElementById("btnLocalOneDrive");
+        const displayVal = enabled ? "flex" : "none";
+        if (btnOpenLocal) btnOpenLocal.style.display = displayVal;
+        if (btnLocalOneDrive) btnLocalOneDrive.style.display = displayVal;
       }
 
-      function selectTabByService(serviceName) {
-        if (!serviceName) return;
-        const targetBtn = document.querySelector(`.nav-item[data-service="${serviceName.toLowerCase()}"]`);
-        if (targetBtn) {
-          navButtons.forEach(b => b.classList.remove("active"));
-          targetBtn.classList.add("active");
-          const color = targetBtn.getAttribute("data-color");
-          const title = targetBtn.getAttribute("data-title");
-          setAppAccentColor(color);
-          if (topbarTitle && title) topbarTitle.textContent = title;
+      function applyTopbarTheme(appColor) {
+        if (appColor) currentActiveServiceColor = appColor;
+        document.documentElement.style.setProperty("--current-accent", currentActiveServiceColor);
+      }
+
+      function isColorDark(hex) {
+        if (!hex || typeof hex !== 'string') return false;
+        let c = hex.replace('#', '');
+        if (c.length === 3) c = c.split('').map(x => x + x).join('');
+        const rgb = parseInt(c, 16);
+        if (isNaN(rgb)) return false;
+        const r = (rgb >> 16) & 0xff;
+        const g = (rgb >> 8) & 0xff;
+        const b = (rgb >> 0) & 0xff;
+        const luma = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        return luma < 155;
+      }
+
+      function applyLeftbarTheme() {
+        const theme = localStorage.getItem("pref_leftbar_theme") || "default";
+        if (theme === "topbar") {
+          const topbarBg = getComputedStyle(appTopbar).getPropertyValue("--current-accent").trim() || currentActiveServiceColor;
+          document.documentElement.style.setProperty("--leftbar-bg", topbarBg);
+          appSidebar.classList.add("dark-themed-sidebar");
+        } else if (theme === "custom") {
+          const customColor = localStorage.getItem("pref_leftbar_custom_color") || "#f8fafc";
+          document.documentElement.style.setProperty("--leftbar-bg", customColor);
+          if (isColorDark(customColor)) {
+            appSidebar.classList.add("dark-themed-sidebar");
+          } else {
+            appSidebar.classList.remove("dark-themed-sidebar");
+          }
+        } else {
+          document.documentElement.style.setProperty("--leftbar-bg", "#f8fafc");
+          appSidebar.classList.remove("dark-themed-sidebar");
         }
+      }
+
+      function applyCompactSidebar(isCompact) {
+        if (isCompact) {
+          appSidebar.classList.add("compact-mode");
+        } else {
+          appSidebar.classList.remove("compact-mode");
+        }
+      }
+
+      function applyAutoHideSidebar(isEnabled) {
+        if (isEnabled) {
+          document.body.classList.add("autohide-enabled");
+        } else {
+          document.body.classList.remove("autohide-enabled");
+        }
+      }
+
+      hoverTriggerZone?.addEventListener("mouseenter", () => {
+        if (document.body.classList.contains("autohide-enabled")) {
+          applyCompactSidebar(false);
+          window.electronAPI?.notifyResize(230);
+        }
+      });
+
+      appSidebar?.addEventListener("mouseenter", () => {
+        if (document.body.classList.contains("autohide-enabled")) {
+          applyCompactSidebar(false);
+          window.electronAPI?.notifyResize(230);
+        }
+      });
+
+      appSidebar?.addEventListener("mouseleave", () => {
+        if (document.body.classList.contains("autohide-enabled")) {
+          applyCompactSidebar(true);
+          window.electronAPI?.notifyResize(54);
+        }
+      });
+
+      applyTopbarTheme("#185abd");
+      applyLeftbarTheme();
+
+      // Carrega estado unificado de preferências
+      if (window.electronAPI?.getAllPreferences) {
+        window.electronAPI.getAllPreferences().then(prefs => {
+          if (prefs) {
+            localStorage.setItem("pref_leftbar_theme", prefs.leftbar_theme || "default");
+            localStorage.setItem("pref_leftbar_custom_color", prefs.leftbar_custom_color || "#f8fafc");
+            localStorage.setItem("pref_default_app", prefs.default_app || "word");
+            localStorage.setItem("pref_autohide_sidebar", String(prefs.autohide_sidebar || false));
+            localStorage.setItem("pref_compact_nav", String(prefs.compact_nav || false));
+            localStorage.setItem("pref_native_onedrive_sync", String(prefs.native_onedrive_sync || false));
+
+            applyLeftbarTheme();
+            applyAutoHideSidebar(prefs.autohide_sidebar === true);
+            applyCompactSidebar(prefs.compact_nav === true);
+            updateLocalButtonsVisibility(prefs.native_onedrive_sync === true);
+
+            const targetApp = (prefs.default_app === "last_used")
+              ? (localStorage.getItem("last_active_service") || "word")
+              : (prefs.default_app || "word");
+            const startupBtn = document.querySelector(`.nav-item[data-service="${targetApp}"]`);
+            if (startupBtn) startupBtn.click();
+          }
+        });
+      } else {
+        const autoHideActive = localStorage.getItem("pref_autohide_sidebar") === "true";
+        const compactActive = localStorage.getItem("pref_compact_nav") === "true";
+        applyAutoHideSidebar(autoHideActive);
+        applyCompactSidebar(compactActive);
+        updateLocalButtonsVisibility(localStorage.getItem("pref_native_onedrive_sync") === "true");
+      }
+
+      if (window.electronAPI?.onConfigUpdated) {
+        window.electronAPI.onConfigUpdated(({ key, value }) => {
+          if (key === "leftbar_theme") {
+            localStorage.setItem("pref_leftbar_theme", value);
+            applyLeftbarTheme();
+          } else if (key === "leftbar_custom_color") {
+            localStorage.setItem("pref_leftbar_custom_color", value);
+            applyLeftbarTheme();
+          } else if (key === "compact_nav") {
+            localStorage.setItem("pref_compact_nav", value);
+            applyCompactSidebar(Boolean(value));
+            window.electronAPI?.notifyResize(value ? 54 : 230);
+          } else if (key === "autohide_sidebar") {
+            localStorage.setItem("pref_autohide_sidebar", value);
+            applyAutoHideSidebar(Boolean(value));
+            if (Boolean(value)) {
+              applyCompactSidebar(true);
+              window.electronAPI?.notifyResize(54);
+            } else {
+              const comp = localStorage.getItem("pref_compact_nav") === "true";
+              applyCompactSidebar(comp);
+              window.electronAPI?.notifyResize(comp ? 54 : 230);
+            }
+          } else if (key === "default_app") {
+            localStorage.setItem("pref_default_app", value);
+          } else if (key === "native_onedrive_sync") {
+            localStorage.setItem("pref_native_onedrive_sync", value);
+            updateLocalButtonsVisibility(Boolean(value));
+          }
+        });
+      }
+
+      if (window.electronAPI?.onOneDriveStatus) {
+        window.electronAPI.onOneDriveStatus((status) => {
+          if (!syncStatusPill || !syncStatusBadge) return;
+          syncStatusPill.textContent = `OneDrive: ${status}`;
+          if (status.toLowerCase().includes("sync") && !status.toLowerCase().includes("not")) {
+            syncStatusBadge.className = "status-badge synced";
+          } else {
+            syncStatusBadge.className = "status-badge disconnected";
+          }
+        });
       }
 
       function updateSoundUI(isSoundOn) {
@@ -829,111 +929,12 @@
         if (topbarProgress) topbarProgress.classList.add("active");
       }
 
-      function hideFileLoadingToast() {
-        toastTimeout = setTimeout(() => {
-          if (fileLoadingToast) fileLoadingToast.classList.remove("visible");
-          if (topbarProgress) topbarProgress.classList.remove("active");
-        }, 1200);
-      }
-
-      function renderQuotaUI(q) {
-        if (!q || !fillEl || !numbersEl || !percentEl) return;
-        const usedStr = q.used || "23,5 GB";
-        const totalStr = q.total || "1 TB";
-        const pct = Math.min(100, Math.max(0, q.percentUsed || q.percent || 2));
-
-        fillEl.style.width = `${pct}%`;
-        numbersEl.textContent = `${usedStr} / ${totalStr}`;
-        percentEl.textContent = `${pct}% used (${q.remaining || q.free || "976,5 GB"} free)`;
-
-        if (pct >= 90) {
-          fillEl.classList.add("warning");
-        } else {
-          fillEl.classList.remove("warning");
-        }
-      }
-
-      renderQuotaUI({ used: "23,5 GB", total: "1 TB", percentUsed: 2, remaining: "976,5 GB" });
-
-      async function refreshQuota() {
-        try {
-          if (!window.electronAPI) return;
-          const res = await window.electronAPI.getStorageQuota();
-          const quotaObj = res?.data || res?.quota;
-          if (quotaObj && quotaObj.total) {
-            renderQuotaUI(quotaObj);
-          }
-        } catch (_) {}
-      }
-
-      refreshQuota();
-      setInterval(refreshQuota, 15 * 60 * 1000);
-
-      if (window.electronAPI) {
-        if (typeof window.electronAPI.onSelectServiceTab === "function") {
-          window.electronAPI.onSelectServiceTab((serviceName) => {
-            selectTabByService(serviceName);
-          });
-        }
-
+      if (window.electronAPI?.onBrowserLoading) {
         window.electronAPI.onBrowserLoading((isLoading) => {
-          if (topbarProgress) {
-            topbarProgress.classList.toggle("active", Boolean(isLoading));
-          }
-        });
-
-        if (typeof window.electronAPI.onOfficeFileLoading === "function") {
-          window.electronAPI.onOfficeFileLoading((data) => {
-            const fileName = data?.fileName || "Document";
-            const statusMsg = data?.status || "Loading...";
-            if (data?.service) selectTabByService(data.service);
-            showFileLoadingToast(`Opening: ${fileName}`, statusMsg);
-          });
-        }
-
-        if (typeof window.electronAPI.onOfficeFileFinished === "function") {
-          window.electronAPI.onOfficeFileFinished(() => {
-            hideFileLoadingToast();
-          });
-        }
-
-        window.electronAPI.onOfficeFileOpened((info) => {
-          if (info && info.name && topbarTitle) {
-            topbarTitle.textContent = info.name;
-          }
-          if (info?.service) {
-            selectTabByService(info.service);
-          }
-          hideFileLoadingToast();
-        });
-
-        if (typeof window.electronAPI.onOfficeFileRenamed === "function") {
-          window.electronAPI.onOfficeFileRenamed((info) => {
-            if (info && info.fileName && topbarTitle) {
-              topbarTitle.textContent = info.fileName;
-              showFileLoadingToast(`Renamed: ${info.fileName}`, "Local tracking updated for subsequent saves");
-              setTimeout(hideFileLoadingToast, 2500);
-            }
-          });
-        }
-
-        window.electronAPI.onStorageQuotaUpdated?.((data) => {
-          renderQuotaUI(data);
-        });
-
-        window.electronAPI.onOneDriveStatus((status) => {
-          if (syncStatusPill) syncStatusPill.textContent = status;
-          if (syncStatusBadge) {
-            const lower = status.toLowerCase();
-            if (lower.includes("synced") || lower.includes("saved")) {
-              syncStatusBadge.className = "status-badge synced";
-            } else if (lower.includes("syncing") || lower.includes("saving") || lower.includes("starting")) {
-              syncStatusBadge.className = "status-badge syncing";
-            } else if (lower.includes("error") || lower.includes("conflict")) {
-              syncStatusBadge.className = "status-badge error";
-            } else {
-              syncStatusBadge.className = "status-badge";
-            }
+          if (isLoading) {
+            topbarProgress?.classList.add("active");
+          } else {
+            topbarProgress?.classList.remove("active");
           }
         });
       }
@@ -941,15 +942,18 @@
       navButtons.forEach(btn => {
         btn.addEventListener("click", () => {
           navButtons.forEach(b => b.classList.remove("active"));
-            btn.classList.add("active");
+          btn.classList.add("active");
 
           const color = btn.getAttribute("data-color");
           const title = btn.getAttribute("data-title");
+          const service = btn.getAttribute("data-service");
 
-          setAppAccentColor(color);
+          localStorage.setItem("last_active_service", service);
+
+          applyTopbarTheme(color);
+          applyLeftbarTheme();
           if (topbarTitle && title) topbarTitle.textContent = title;
 
-          const service = btn.getAttribute("data-service");
           if (window.electronAPI) window.electronAPI.openService(service);
         });
       });
@@ -978,8 +982,8 @@
 
       document.getElementById("btnSaveLocal")?.addEventListener("click", async () => {
         if (!window.electronAPI) return;
-        if (syncStatusPill) syncStatusPill.textContent = "Saving...";
-        if (syncStatusBadge) syncStatusBadge.className = "status-badge syncing";
+        if (syncStatusPill) syncStatusPill.textContent = "OneDrive: Sync";
+        if (syncStatusBadge) syncStatusBadge.className = "status-badge synced";
         await window.electronAPI.saveLocalNow();
       });
     });

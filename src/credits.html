@@ -3,499 +3,501 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:;">
   <title>Credits - Microsoft 365 for Linux (Unofficial)</title>
   <style>
+    :root {
+      --bg-gradient: linear-gradient(135deg, #f0f4f9 0%, #e2e8f0 100%);
+      --surface-card: rgba(255, 255, 255, 0.85);
+      --surface-border: rgba(255, 255, 255, 0.6);
+      --text-main: #1e293b;
+      --text-secondary: #475569;
+      --m365-blue: #0078d4;
+      --m365-accent-gradient: linear-gradient(135deg, #0078d4 0%, #002050 100%);
+      --pix-gradient: linear-gradient(135deg, #820ad1 0%, #4b0082 100%);
+      --crypto-gradient: linear-gradient(135deg, #0ea5e9 0%, #0f766e 100%);
+      --card-shadow: 0 8px 30px rgba(0, 0, 0, 0.05);
+    }
+
     * {
       box-sizing: border-box;
       margin: 0;
       padding: 0;
-      -webkit-font-smoothing: antialiased;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     }
 
     body {
-      font-family: 'Segoe UI Variable Display', 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
-      background-color: #f8fafc;
-      color: #1e293b;
-      padding: 40px 24px;
-      line-height: 1.6;
+      background: var(--bg-gradient);
+      color: var(--text-main);
+      padding: 36px 16px;
       display: flex;
       justify-content: center;
+      min-height: 100vh;
     }
 
     .container {
+      width: 100%;
       max-width: 860px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .card {
+      background: var(--surface-card);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--surface-border);
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: var(--card-shadow);
+      position: relative;
+    }
+
+    .hero-header {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      padding: 24px;
+    }
+
+    .hero-brand {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .logo-container {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .hero-titles {
+      display: flex;
+      flex-direction: column;
+      text-align: left;
+      justify-content: center;
+    }
+
+    .hero-title {
+      font-size: 23px;
+      font-weight: 700;
+      line-height: 1.2;
+      background: linear-gradient(135deg, #0078d4 0%, #2b579a 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 6px;
+    }
+
+    .hero-subtitle {
+      font-size: 13.5px;
+      color: var(--text-secondary);
+      line-height: 1.48;
+    }
+
+    .disclaimer-box {
+      background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+      border: 1px solid #fde68a;
+      border-left: 4px solid #f59e0b;
+      border-radius: 6px;
+      padding: 12px 16px;
+      font-size: 12px;
+      color: #78350f;
+      line-height: 1.45;
+      text-align: left;
       width: 100%;
     }
 
-    /* Cabeçalho */
-    .header {
-      text-align: center;
-      margin-bottom: 36px;
+    .disclaimer-box strong {
+      color: #92400e;
     }
 
-    .header-logo {
-      display: inline-flex;
-      margin-bottom: 12px;
+    .section-title-wrap {
+      margin-bottom: 18px;
     }
 
-    .header h1 {
-      font-size: 24px;
+    .section-title {
+      font-size: 17px;
       font-weight: 700;
-      color: #0f172a;
-      letter-spacing: -0.3px;
-    }
-
-    .header p {
-      font-size: 14px;
-      color: #64748b;
-      margin-top: 4px;
-    }
-
-    /* Cards Informativos Fluent */
-    .fluent-card {
-      background: #ffffff;
-      border: 1px solid #e2e8f0;
-      border-radius: 10px;
-      padding: 24px;
-      margin-bottom: 24px;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-    }
-
-    .fluent-card h2 {
-      font-size: 16px;
-      font-weight: 600;
-      color: #0f172a;
-      margin-bottom: 12px;
+      color: var(--text-main);
       display: flex;
       align-items: center;
       gap: 8px;
     }
 
-    .fluent-card p {
-      font-size: 13.5px;
-      color: #334155;
-      margin-bottom: 12px;
-    }
-
-    .fluent-card p:last-child {
-      margin-bottom: 0;
-    }
-
-    .disclaimer {
+    .section-desc {
       font-size: 12.5px;
-      color: #64748b;
-      background-color: #f1f5f9;
-      padding: 12px 16px;
-      border-radius: 6px;
-      border-left: 3px solid #94a3b8;
+      color: var(--text-secondary);
+      margin-top: 3px;
     }
 
-    /* =========================================================
-       Seção de Doações (Lado a Lado)
-       ========================================================= */
-    .donation-section {
-      background: #ffffff;
-      border: 1px solid #e2e8f0;
-      border-radius: 12px;
-      padding: 28px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-      margin-bottom: 24px;
-    }
-
-    .donation-intro {
-      text-align: center;
-      max-width: 620px;
-      margin: 0 auto 24px auto;
-    }
-
-    .donation-intro h2 {
-      font-size: 18px;
-      font-weight: 700;
-      color: #0f172a;
-      margin-bottom: 8px;
-    }
-
-    .donation-intro p {
-      font-size: 13.5px;
-      color: #475569;
-    }
-
-    .donation-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 20px;
-    }
-
-    @media (max-width: 680px) {
-      .donation-grid {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    .payment-box {
-      border: 1px solid #cbd5e1;
-      border-radius: 10px;
-      padding: 20px;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      background: #f8fafc;
-      transition: border-color 0.2s ease, box-shadow 0.2s ease;
-    }
-
-    .payment-box:hover {
-      border-color: #94a3b8;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-    }
-
-    .payment-header {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 12px;
-    }
-
-    .payment-badge {
-      width: 32px;
-      height: 32px;
-      border-radius: 6px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-    }
-
-    .pix-badge {
-      background-color: #820ad1;
-    }
-
-    .crypto-badge {
-      background-color: #009393;
-    }
-
-    .payment-title {
-      font-size: 14px;
-      font-weight: 600;
-      color: #0f172a;
-    }
-
-    .payment-sub {
-      font-size: 11.5px;
-      color: #64748b;
-    }
-
-    .wallet-code-area {
-      background: #ffffff;
-      border: 1px solid #e2e8f0;
-      border-radius: 6px;
-      padding: 10px 12px;
-      margin: 12px 0;
-      font-family: monospace;
-      font-size: 11px;
-      color: #334155;
-      word-break: break-all;
-      user-select: all;
-      max-height: 72px;
-      overflow-y: auto;
-    }
-
-    .network-warning {
-      font-size: 11px;
-      color: #b45309;
-      background: #fffbeb;
-      border: 1px solid #fde68a;
-      border-radius: 6px;
-      padding: 8px 10px;
-      margin-bottom: 14px;
-      line-height: 1.4;
-    }
-
-    .btn-action {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      width: 100%;
-      height: 36px;
-      border-radius: 6px;
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-      text-decoration: none;
-      transition: all 0.15s ease;
-      border: 1px solid transparent;
-    }
-
-    .btn-pix {
-      background: #820ad1;
-      color: #ffffff;
-    }
-
-    .btn-pix:hover {
-      background: #6d08af;
-    }
-
-    .btn-copy {
-      background: #ffffff;
-      border-color: #cbd5e1;
-      color: #334155;
-    }
-
-    .btn-copy:hover {
-      background: #f1f5f9;
-      border-color: #94a3b8;
-    }
-
-    .btn-action:active {
-      transform: scale(0.98);
-    }
-
-    /* =========================================================
-       Nova Seção: Special Thanks & Acknowledgments (Estilo Fluent)
-       ========================================================= */
-    .acknowledgments-section {
-      background: #ffffff;
-      border: 1px solid #e2e8f0;
-      border-radius: 12px;
-      padding: 28px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-    }
-
-    .acknowledgments-section h2 {
-      font-size: 18px;
-      font-weight: 700;
-      color: #0f172a;
-      margin-bottom: 6px;
-    }
-
-    .acknowledgments-section > p {
-      font-size: 13px;
-      color: #64748b;
-      margin-bottom: 20px;
-    }
-
-    .ack-grid {
+    .support-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 16px;
     }
 
-    @media (max-width: 680px) {
+    @media (max-width: 700px) {
+      .support-grid {
+        grid-template-columns: 1fr;
+      }
+      .hero-brand {
+        flex-direction: column;
+        text-align: center;
+      }
+      .hero-titles {
+        text-align: center;
+      }
+    }
+
+    .support-box {
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 18px;
+      background: #ffffff;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+    }
+
+    .support-box-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .badge-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #ffffff;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
+    }
+
+    .pix-badge { background: var(--pix-gradient); }
+    .crypto-badge { background: var(--crypto-gradient); }
+
+    .support-box-title h4 {
+      font-size: 14.5px;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .support-box-title span {
+      font-size: 11.5px;
+      color: var(--text-secondary);
+    }
+
+    .code-box {
+      background-color: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 10px;
+      font-size: 11px;
+      color: #334155;
+      word-break: break-all;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      max-height: 60px;
+      overflow-y: auto;
+      margin-bottom: 12px;
+    }
+
+    .alert-banner {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-radius: 4px;
+      padding: 8px 10px;
+      font-size: 11px;
+      color: #991b1b;
+      margin-bottom: 12px;
+      line-height: 1.35;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 8px 12px;
+      font-size: 12.5px;
+      font-weight: 500;
+      border-radius: 6px;
+      border: 1px solid #cbd5e1;
+      background: #ffffff;
+      color: var(--text-main);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+
+    .btn:hover {
+      background-color: #f1f5f9;
+      border-color: #94a3b8;
+    }
+
+    .btn-primary {
+      background: var(--pix-gradient);
+      border: none;
+      color: #ffffff;
+    }
+
+    .btn-primary:hover {
+      opacity: 0.92;
+    }
+
+    .ack-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    @media (max-width: 700px) {
       .ack-grid {
         grid-template-columns: 1fr;
       }
     }
 
     .ack-card {
-      background: #f8fafc;
       border: 1px solid #e2e8f0;
       border-radius: 8px;
-      padding: 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      transition: background-color 0.15s ease, border-color 0.15s ease;
+      padding: 14px 16px;
+      background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+      transition: transform 0.15s ease;
     }
 
     .ack-card:hover {
-      background: #f1f5f9;
-      border-color: #cbd5e1;
+      transform: translateY(-2px);
     }
 
-    .ack-number {
-      font-size: 11px;
-      font-weight: 700;
-      color: #0078d4;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-
-    .ack-title {
-      font-size: 14.5px;
+    .ack-card h4 {
+      font-size: 14px;
       font-weight: 600;
-      color: #0f172a;
+      color: var(--text-main);
+      margin-bottom: 6px;
     }
 
-    .ack-desc {
-      font-size: 12.5px;
-      color: #475569;
+    .ack-card p {
+      font-size: 12px;
+      color: var(--text-secondary);
       line-height: 1.5;
     }
 
     .ack-link {
-      color: #0078d4;
-      text-decoration: none;
-      font-weight: 500;
+      color: var(--m365-blue);
+      text-decoration: underline;
+      font-weight: 600;
     }
 
     .ack-link:hover {
-      text-decoration: underline;
+      color: #004e8c;
+    }
+
+    .get-involved-card {
+      background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);
+      border: 1px solid #cbd5e1;
+      border-radius: 12px;
+      padding: 20px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .get-involved-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .get-involved-header h3 {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .get-involved-text {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    .btn-github {
+      align-self: flex-start;
+      background: linear-gradient(135deg, #24292f 0%, #0f172a 100%);
+      color: #ffffff;
+      border: none;
+      padding: 8px 18px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+      transition: opacity 0.2s ease, transform 0.15s ease;
+    }
+
+    .btn-github:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
     }
   </style>
 </head>
 <body>
 
   <div class="container">
-    <!-- Header -->
-    <header class="header">
-      <div class="header-logo">
-        <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
-          <rect x="2" y="2" width="9.5" height="9.5" fill="#f25022"/>
-          <rect x="12.5" y="2" width="9.5" height="9.5" fill="#7fba00"/>
-          <rect x="2" y="12.5" width="9.5" height="9.5" fill="#00a4ef"/>
-          <rect x="12.5" y="12.5" width="9.5" height="9.5" fill="#ffb900"/>
-        </svg>
-      </div>
-      <h1>Microsoft 365 for Linux (Unofficial)</h1>
-      <p>An open-source desktop client built for native Linux integration</p>
-    </header>
+    
+    <div class="card hero-header">
+      <div class="hero-brand">
+        <div class="logo-container">
+          <svg width="68" height="68" viewBox="0 0 24 24">
+            <rect x="1" y="1" width="10.5" height="10.5" fill="#f25022" />
+            <rect x="12.5" y="1" width="10.5" height="10.5" fill="#7fba00" />
+            <rect x="1" y="12.5" width="10.5" height="10.5" fill="#00a4ef" />
+            <rect x="12.5" y="12.5" width="10.5" height="10.5" fill="#ffb900" />
+          </svg>
+        </div>
 
-    <!-- Project Details -->
-    <div class="fluent-card">
-      <h2>Project Details</h2>
-      <p>
-        This application is a community-driven project providing seamless integration of the Microsoft 365 web ecosystem on Linux desktops. Built using Electron, Flatpak sandboxing, Fluent Design principles, and <code>abraunegg/onedrive</code> for native background file synchronization.
-      </p>
-      <div class="disclaimer">
-        <strong>Disclaimer:</strong> This software is an independent, unofficial client and is not affiliated, endorsed, or sponsored by Microsoft Corporation. All product names, logos, and brands are property of their respective owners.
+        <div class="hero-titles">
+          <h1 class="hero-title">Microsoft 365 for Linux (Unofficial)</h1>
+          <p class="hero-subtitle">
+            A seamless open-source desktop integration bringing Microsoft 365 web applications, native background cloud synchronization via abraunegg/onedrive, system tray controls, and desktop notifications to Linux.
+          </p>
+        </div>
+      </div>
+
+      <div class="disclaimer-box">
+        <strong>Disclaimer:</strong> This project is free, open-source, and entirely non-profit. It is not affiliated with, endorsed, or sponsored by Microsoft Corporation. All trademarks, service marks, logos, and app icons are the property of Microsoft Corporation or their respective owners.
       </div>
     </div>
 
-    <!-- Support Section -->
-    <section class="donation-section">
-      <div class="donation-intro">
-        <h2>Support the Project</h2>
-        <p>
-          If this Flatpak helped you and made your daily workflow easier, consider making a donation to support continuous maintenance, bug fixes, and development.
-        </p>
+    <div class="card">
+      <div class="section-title-wrap">
+        <h3 class="section-title">Support the Project</h3>
+        <p class="section-desc">If this project enhances your daily workflow, consider supporting its continuous development, maintenance, and bug fixes.</p>
       </div>
 
-      <div class="donation-grid">
-        <!-- Pix Nubank -->
-        <div class="payment-box">
+      <div class="support-grid">
+        <div class="support-box">
           <div>
-            <div class="payment-header">
-              <div class="payment-badge pix-badge">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="#ffffff">
-                  <path d="M12 2L3 9l9 7 9-7-9-7zm0 14l-9-7v9l9 7 9-7v-9l-9 7z"/>
+            <div class="support-box-header">
+              <div class="badge-icon pix-badge">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/>
                 </svg>
               </div>
-              <div>
-                <div class="payment-title">Pix (Nubank)</div>
-                <div class="payment-sub">Pix Copia e Cola / Nubank Link</div>
+              <div class="support-box-title">
+                <h4>Pix (Nubank)</h4>
+                <span>Pix Copia e Cola / Nubank Link</span>
               </div>
             </div>
-            <p style="font-size: 12px; color: #64748b;">
-              Copy the Pix code below into your banking app or open the payment link directly:
+            <p style="font-size: 11.5px; color: var(--text-secondary); margin-bottom: 8px;">
+              Copy the Pix code below into your banking app:
             </p>
-            <div class="wallet-code-area" id="pixCode">00020126420014BR.GOV.BCB.PIX0120davidmax05@gmail.com5204000053039865802BR5925David Nicholas Alves Feli6009SAO PAULO6214051067ZroYivZn63046F74</div>
+            <div class="code-box" id="pixCode">00020126420014BR.GOV.BCB.PIX0120davidnax05@gmail.com5204000053039865802BR5925David Nicholas Alves Fel6009SAO PAULO62140510G7rcYsvZn61046</div>
           </div>
-
-          <div style="display: flex; gap: 8px;">
-            <button class="btn-action btn-copy" onclick="copyValue('pixCode', this)">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M16 1H4a2 2 0 0 0-2 2v14h2V3h12V1zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm0 16H8V7h11v14z"/>
-              </svg>
-              Copy Pix
-            </button>
-            <a class="btn-action btn-pix" href="https://nubank.com.br/cobrar/2qvoi/6a9a12f3-0f4c-4e13-83e4-12f10d7ffba1" target="_blank">
-              Open Pix
-            </a>
+          <div class="btn-group">
+            <button class="btn" onclick="copyToClipboard('pixCode')">Copy Pix</button>
+            <button class="btn btn-primary" onclick="alert('Abra o app do seu banco e selecione Pix Copia e Cola.')">Open Pix</button>
           </div>
         </div>
 
-        <!-- Binance Wallet Solana -->
-        <div class="payment-box">
+        <div class="support-box">
           <div>
-            <div class="payment-header">
-              <div class="payment-badge crypto-badge">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="#ffffff">
-                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 14.93V18h-2v-1.07A6 6 0 0 1 6.07 12H5v-2h1.07A6 6 0 0 1 11 4.93V4h2v.93A6 6 0 0 1 17.93 10H19v2h-1.07A6 6 0 0 1 13 16.93z"/>
+            <div class="support-box-header">
+              <div class="badge-icon crypto-badge">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm1 14.93V18h-2v-1.07A4.47 4.47 0 0 1 8 13.15l1.87-.78a2.53 2.53 0 0 0 2.13 2.53V12.1L9 11.45A4.42 4.42 0 0 1 8 8a4.34 4.34 0 0 1 3-3.87V3h2v1.13A4.27 4.27 0 0 1 16 7.82l-1.87.78a2.38 2.38 0 0 0-2.13-2.5v2.75l3 0.65A4.42 4.42 0 0 1 16 12.85 4.34 4.34 0 0 1 13 16.93z"/>
                 </svg>
               </div>
-              <div>
-                <div class="payment-title">Binance / Crypto Wallet</div>
-                <div class="payment-sub">USDT (Solana Network)</div>
+              <div class="support-box-title">
+                <h4>Binance / Crypto Wallet</h4>
+                <span>USDT (Solana Network)</span>
               </div>
             </div>
-
-            <div class="network-warning">
-              ⚠️ <strong>Important:</strong> Send only <strong>Solana (SOL) network</strong> assets to this address. Other assets will be permanently lost.
+            <div class="alert-banner">
+              <strong>Important:</strong> Send only Solana (SOL) network assets to this address.
             </div>
-
-            <div class="wallet-code-area" id="solanaWallet">8hFpRR9EBQPPbSVcsjAUA7zMjLUqrDYVLV63zf9JvMh</div>
+            <div class="code-box" id="cryptoAddress">BnFCRRS9EDPpSwcsTJAtA72KjLUdr9VLVG3zf9jvVMrt</div>
           </div>
-
-          <button class="btn-action btn-copy" onclick="copyValue('solanaWallet', this)">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M16 1H4a2 2 0 0 0-2 2v14h2V3h12V1zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm0 16H8V7h11v14z"/>
-            </svg>
-            Copy Address
-          </button>
+          <div class="btn-group">
+            <button class="btn" onclick="copyToClipboard('cryptoAddress')">Copy Address</button>
+          </div>
         </div>
       </div>
-    </section>
+    </div>
 
-    <!-- Special Acknowledgments -->
-    <section class="acknowledgments-section">
-      <h2>Special Acknowledgments</h2>
-      <p>Pioneers, ecosystems, and creators that make open-source development possible.</p>
+    <div class="card">
+      <div class="section-title-wrap">
+        <h3 class="section-title">Special Acknowledgments</h3>
+        <p class="section-desc">Pioneers, ecosystems, and creators that make open-source development possible.</p>
+      </div>
 
       <div class="ack-grid">
-        <!-- 1. Linux Community -->
         <div class="ack-card">
-          <span class="ack-number">01</span>
-          <div class="ack-title">Linux Community</div>
-          <div class="ack-desc">For continuous collaboration, passion, and building a robust open-source ecosystem that empowers developers worldwide.</div>
+          <h4>Linux Community</h4>
+          <p>For continuous collaboration, passion, and building a robust open-source ecosystem that empowers developers worldwide, especially to <a href="https://github.com/abraunegg/onedrive" target="_blank" rel="noopener noreferrer" class="ack-link">abraunegg/onedrive</a>.</p>
         </div>
 
-        <!-- 2. Linus Torvalds -->
         <div class="ack-card">
-          <span class="ack-number">02</span>
-          <div class="ack-title">Linus Torvalds</div>
-          <div class="ack-desc">For creating the Linux kernel and Git, laying the foundational infrastructure for modern software engineering.</div>
+          <h4>Linus Torvalds</h4>
+          <p>For creating the Linux kernel and Git, laying the foundational infrastructure for modern software engineering.</p>
         </div>
 
-        <!-- 3. Microsoft Corporation -->
         <div class="ack-card">
-          <span class="ack-number">03</span>
-          <div class="ack-title">Microsoft Corporation</div>
-          <div class="ack-desc">For providing robust web productivity suites and developer tools that bridge cross-platform workflows.</div>
+          <h4>Microsoft Corporation</h4>
+          <p>For providing robust web productivity suites and developer tools that bridge cross-platform workflows.</p>
         </div>
 
-        <!-- 4. David Nicholas -->
         <div class="ack-card">
-          <span class="ack-number">04</span>
-          <div class="ack-title">David Nicholas Alves Felismino Leite de Leão</div>
-          <div class="ack-desc">
-            Creator and lead maintainer of this unofficial desktop integration package.<br>
-            <a class="ack-link" href="https://github.com/DavidNi05" target="_blank">github.com/DavidNi05</a>
-          </div>
+          <h4>David Nicholas Alves Felismino Leite de Leão</h4>
+          <p>Creator and lead maintainer of this unofficial desktop integration package.</p>
         </div>
       </div>
-    </section>
+    </div>
+
+    <div class="get-involved-card">
+      <div class="get-involved-header">
+        <svg height="26" width="26" viewBox="0 0 16 16" fill="#24292f" aria-hidden="true">
+          <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path>
+        </svg>
+        <h3>Get Involved</h3>
+      </div>
+
+      <p class="get-involved-text">
+        Engage with the project: contribute, read the documentation, share with the Linux community, report issues, and suggest improvements to the codebase.
+      </p>
+
+      <a href="https://github.com/DavidNi05/Microsoft365_for_Linux_Unofficial" target="_blank" rel="noopener noreferrer" class="btn-github">
+        <span>View on GitHub</span>
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3.5 8.5L8.5 3.5M8.5 3.5H4M8.5 3.5V8"></path>
+        </svg>
+      </a>
+    </div>
+
   </div>
 
   <script>
-    function copyValue(elementId, btn) {
-      const el = document.getElementById(elementId);
-      if (!el) return;
-
-      const text = el.textContent.trim();
+    function copyToClipboard(id) {
+      const text = document.getElementById(id).innerText;
       navigator.clipboard.writeText(text).then(() => {
-        const originalText = btn.innerHTML;
-        btn.innerHTML = `✓ Copied!`;
-        btn.style.borderColor = "#10b981";
-        btn.style.color = "#059669";
-
-        setTimeout(() => {
-          btn.innerHTML = originalText;
-          btn.style.borderColor = "";
-          btn.style.color = "";
-        }, 2000);
+        alert('Copied to clipboard!');
       }).catch(err => {
-        console.error("Failed to copy:", err);
+        console.error('Failed to copy: ', err);
       });
     }
   </script>
