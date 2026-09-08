@@ -36,8 +36,13 @@ let trayCurrentStatus = "OneDrive Sync: Active";
 let memoryQuotaCache = null;
 let webScrapedQuota = null;
 
+let uiOpenHandler = null;
 let soundStateGetter = () => true;
 let soundStateSetter = () => {};
+
+function setOpenUiHandler(handler) {
+  if (typeof handler === "function") uiOpenHandler = handler;
+}
 
 function setSoundHandlers(getter, setter) {
   if (typeof getter === "function") soundStateGetter = getter;
@@ -87,7 +92,14 @@ function spawnM365(args = []) {
   }
 }
 
-function openMicrosoft365() { return spawnM365([]); }
+function openMicrosoft365() { 
+  if (typeof uiOpenHandler === "function") {
+    uiOpenHandler();
+    return true;
+  }
+  return spawnM365([]); 
+}
+
 function requestInterfaceQuit() { return spawnM365(["--quit-ui"]); }
 
 async function openOneDriveFolder() {
@@ -96,7 +108,7 @@ async function openOneDriveFolder() {
 }
 
 function rebuildTrayMenu() {
-  if (!tray) return;
+  if (!tray || tray.isDestroyed()) return;
   const menuTemplate = [
     { label: "Microsoft 365 for Linux", enabled: false },
     { label: trayCurrentStatus, enabled: false },
@@ -119,14 +131,14 @@ function rebuildTrayMenu() {
 }
 
 function updateTrayStatus(status) {
-  if (!tray) return;
+  if (!tray || tray.isDestroyed()) return;
   trayCurrentStatus = status === "error" ? "OneDrive Sync: Error" : "OneDrive Sync: Active";
   tray.setToolTip("Microsoft 365 — OneDrive Active");
   rebuildTrayMenu();
 }
 
 function createBackgroundTray() {
-  if (tray) return tray;
+  if (tray && !tray.isDestroyed()) return tray;
   if (!fs.existsSync(TRAY_ICON)) return null;
   let image = nativeImage.createFromPath(TRAY_ICON);
   if (image.isEmpty()) return null;
@@ -139,6 +151,7 @@ function createBackgroundTray() {
   tray.setToolTip("Microsoft 365 — OneDrive Active");
   rebuildTrayMenu();
   tray.on("click", () => openMicrosoft365());
+  tray.on("double-click", () => openMicrosoft365());
   return tray;
 }
 
@@ -147,7 +160,10 @@ function destroyBackgroundTray() {
   if (typeof extSync.setStatusReporter === "function") {
     extSync.setStatusReporter(null);
   }
-  if (tray) { tray.destroy(); tray = null; }
+  if (tray && !tray.isDestroyed()) { 
+    tray.destroy(); 
+    tray = null; 
+  }
 }
 
 function writeHeartbeat() {
@@ -187,17 +203,10 @@ function getLastSync() {
   } catch (_) { return null; }
 }
 
-/**
- * Aciona sincronização imediata com segurança.
- * Não envia SIGHUP para evitar encerrar o processo do monitor.
- */
 function triggerImmediateSync() {
   if (monitorProcess && monitorProcess.pid && monitorProcess.exitCode === null) {
-    // Monitor já está ativo com inotify ouvindo o sistema de arquivos
     return true;
   }
-
-  // Se o monitor não estiver em execução, dispara sync sob demanda
   if (!syncProcess) {
     runInitialSync(() => {}).catch(() => {});
   }
@@ -244,10 +253,10 @@ function runInitialSync(onOutput) {
       completeOutput += data.toString(); 
       if (onOutput) onOutput(data.toString()); 
     });
-    syncProcess.on("close", code => {
-      syncProcess = null;
-      if (code === 0) recordSuccessfulSync();
-      resolve({ code, output: completeOutput });
+    syncProcess.on("close", code => { 
+      syncProcess = null; 
+      if (code === 0) recordSuccessfulSync(); 
+      resolve({ code, output: completeOutput }); 
     });
     syncProcess.on("error", err => { 
       syncProcess = null; 
@@ -393,6 +402,7 @@ module.exports = {
   createBackgroundTray,
   destroyBackgroundTray,
   rebuildTrayMenu,
+  setOpenUiHandler,
   setSoundHandlers,
   openMicrosoft365,
   requestInterfaceQuit,

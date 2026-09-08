@@ -5,6 +5,34 @@ ELECTRON="$APPDIR/node_modules/electron/dist/electron"
 
 export ELECTRON_DISABLE_SECURITY_WARNINGS=true
 
+# Rotina de Limpeza Profunda / Redefinição de Fábrica
+if [ "$1" = "--reset" ] || [ "$1" = "--factory-reset" ] || [ "$1" = "--clean-uninstall" ]; then
+    echo "[Microsoft 365] Executando limpeza profunda de configurações e dados..."
+    
+    # 1. Encerra qualquer processo em execução
+    pkill -f "onedrive --confdir" 2>/dev/null || true
+    
+    # 2. Remove atalhos e inicialização automática criados no host
+    rm -f "$HOME/.config/autostart/io.github.DavidNi05.Microsoft365_for_Linux_Unofficial.desktop" 2>/dev/null || true
+    rm -f "$HOME/Área de trabalho/io.github.DavidNi05.Microsoft365_for_Linux_Unofficial.desktop" 2>/dev/null || true
+    rm -f "$HOME/Desktop/io.github.DavidNi05.Microsoft365_for_Linux_Unofficial.desktop" 2>/dev/null || true
+    
+    # 3. Remove configurações e tokens residuais do OneDrive
+    rm -rf "$HOME/.config/onedrive" 2>/dev/null || true
+    
+    # 4. Remove configurações internas da sessão e do Electron no sandbox
+    if [ -n "$XDG_CONFIG_HOME" ]; then
+        rm -rf "$XDG_CONFIG_HOME/Microsoft 365 for Linux (Unofficial)" 2>/dev/null || true
+        rm -rf "$XDG_CONFIG_HOME/onedrive" 2>/dev/null || true
+    fi
+    if [ -n "$XDG_DATA_HOME" ]; then
+        rm -rf "$XDG_DATA_HOME/Microsoft 365 for Linux (Unofficial)" 2>/dev/null || true
+    fi
+
+    echo "[Microsoft 365] Limpeza concluída com sucesso. Todos os dados foram redefinidos."
+    exit 0
+fi
+
 if [ "$1" = "--background" ]; then
     exec "$ELECTRON" "$APPDIR" --background --no-sandbox
 else

@@ -15,3 +15,10 @@ Categories=Office;Network;
 MimeType=application/msword;application/vnd.openxmlformats-officedocument.wordprocessingml.document;application/vnd.ms-excel;application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;application/vnd.ms-powerpoint;application/vnd.openxmlformats-officedocument.presentationml.presentation;
 
 StartupWMClass=Microsoft 365 for Linux (Unofficial)
+
+Actions=ResetData;
+
+[Desktop Action ResetData]
+Name=Reset All Data (Factory Reset)
+Name[pt_BR]=Restaurar Padrões de Fábrica (Limpar Dados)
+Exec=m365-linux --reset
