@@ -26,7 +26,7 @@ fi
 echo "==> 1. Limpando artefatos anteriores..."
 rm -rf "${BUILD_DIR}" "${REPO_DIR}" "${BUNDLE_NAME}"
 
-echo "==> 2. Compilando pacote Flatpak via ${MANIFEST}..."
+echo "==> 2. Compilando pacote Flatpak via ${MANIFEST} (GNOME Platform 50)..."
 flatpak-builder \
     --force-clean \
     --user \

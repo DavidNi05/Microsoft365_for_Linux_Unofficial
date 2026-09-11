@@ -58,8 +58,7 @@ function registerExternalFile(originalPath, oneDrivePath, imported = true) {
 }
 
 /**
- * Busca flexível e bidirecional de mapeamento:
- * Encontra tanto pelo caminho original quanto pelo caminho do OneDrive.
+ * Busca bidirecional de mapeamento de arquivos
  */
 function getExternalMapping(targetPath) {
   if (!targetPath) return null;
@@ -71,21 +70,20 @@ function getExternalMapping(targetPath) {
     return { originalPath: absTarget, ...mappings[absTarget] };
   }
 
-  // 2. Busca reversa (quando targetPath é o caminho de dentro do OneDrive)
+  // 2. Busca reversa (quando targetPath é o caminho sincronizado)
   for (const [orig, info] of Object.entries(mappings)) {
     if (info && info.oneDrivePath) {
       const absInfoOD = path.resolve(info.oneDrivePath);
-      // Correspondência exata ou mesmo diretório de hash
       if (absInfoOD === absTarget || path.dirname(absInfoOD) === path.dirname(absTarget)) {
         return { originalPath: path.resolve(orig), ...info };
       }
     }
   }
 
-  // 3. Busca por correspondência no diretório de imports pelo hash
+  // 3. Busca na pasta de importações pelo hash
   const oneDrive = getOneDriveManager();
   const syncDir = oneDrive.syncDirectory || path.join(os.homedir(), "OneDrive");
-  const importsDir = path.join(syncDir, "Microsoft 365 for Linux Imports");
+  const importsDir = path.join(syncDir, "Office 365 Suite Imports");
 
   if (absTarget.startsWith(importsDir)) {
     const rel = path.relative(importsDir, absTarget);
@@ -113,7 +111,7 @@ function importExternalFile(originalPath) {
     return absOriginal;
   }
 
-  const importsDir = path.join(syncDir, "Microsoft 365 for Linux Imports");
+  const importsDir = path.join(syncDir, "Office 365 Suite Imports");
   fs.mkdirSync(importsDir, { recursive: true, mode: 0o700 });
 
   const fileHash = crypto.createHash("md5").update(absOriginal).digest("hex").substring(0, 12);
@@ -126,7 +124,7 @@ function importExternalFile(originalPath) {
   try {
     fs.copyFileSync(absOriginal, targetPath);
     registerExternalFile(absOriginal, targetPath, true);
-    console.log(`[Office Import] Copied to OneDrive folder: ${targetPath}`);
+    console.log(`[Office Import] Copied to OneDrive: ${targetPath}`);
     return targetPath;
   } catch (err) {
     console.warn("[Office Import] Error copying file:", err.message);
@@ -144,7 +142,7 @@ function cleanDocTitle(rawTitle, originalExtension) {
 
   const invalidKeywords = [
     "Word na Web", "Excel na Web", "PowerPoint na Web",
-    "Microsoft Word", "Microsoft Excel", "Microsoft PowerPoint",
+    "Word", "Excel", "PowerPoint",
     "Criar e editar", "Documento", "Document", "Continuar",
     "Continue", "Salvo", "Saved", "|", "-"
   ];
@@ -168,7 +166,7 @@ function cleanDocTitle(rawTitle, originalExtension) {
 }
 
 /**
- * Salva as alterações de forma atômica e segura de volta para o caminho original.
+ * Salva as alterações de forma atômica de volta ao arquivo original
  */
 async function saveLocalNow(currentPath, expectedWebTitle = null) {
   if (!currentPath) {
@@ -186,27 +184,26 @@ async function saveLocalNow(currentPath, expectedWebTitle = null) {
   const absOriginal = path.resolve(mapping.originalPath);
   let absOneDrive = path.resolve(mapping.oneDrivePath);
 
-  // Se o arquivo foi renomeado no OneDrive, descobre o arquivo atual dentro da subpasta de hash
   if (!fs.existsSync(absOneDrive)) {
     const parentDir = path.dirname(absOneDrive);
     if (fs.existsSync(parentDir)) {
       const files = fs.readdirSync(parentDir).filter(f => !f.startsWith("."));
       if (files.length > 0) {
         absOneDrive = path.join(parentDir, files[0]);
-        console.log(`[Save Local] Resolved active OneDrive working file: "${absOneDrive}"`);
+        console.log(`[Save Local] Resolved active working file: "${absOneDrive}"`);
       }
     }
   }
 
   if (!fs.existsSync(absOneDrive)) {
-    console.error(`[Save Local] Working file not found in OneDrive directory: "${absOneDrive}"`);
+    console.error(`[Save Local] Working file not found: "${absOneDrive}"`);
     return { ok: false, fileName: path.basename(absOriginal), error: "Working file not found in OneDrive directory." };
   }
 
   const originalDir = path.dirname(absOriginal);
   const originalExt = path.extname(absOriginal);
 
-  let targetFileName = path.basename(absOneDrive); // Nome herdado do OneDrive
+  let targetFileName = path.basename(absOneDrive);
   let wasRenamed = false;
 
   if (expectedWebTitle) {
@@ -225,10 +222,8 @@ async function saveLocalNow(currentPath, expectedWebTitle = null) {
   const tempSavePath = path.join(originalDir, `.${targetFileName}.tmp-${Date.now()}`);
 
   try {
-    // 1. Copia de OneDrive para arquivo temporário no mesmo diretório de destino
     await fsp.copyFile(absOneDrive, tempSavePath);
 
-    // 2. Transação atômica (rename substitui o arquivo com segurança)
     try {
       await fsp.rename(tempSavePath, newOriginalPath);
     } catch (renameErr) {
@@ -242,7 +237,6 @@ async function saveLocalNow(currentPath, expectedWebTitle = null) {
 
     console.log(`[Save Local] Successfully saved to disk: "${newOriginalPath}"`);
 
-    // 3. Se foi renomeado, exclui o arquivo antigo caso o nome tenha mudado no mesmo diretório
     if (wasRenamed && newOriginalPath !== absOriginal && fs.existsSync(absOriginal)) {
       try {
         await fsp.unlink(absOriginal);
@@ -250,7 +244,6 @@ async function saveLocalNow(currentPath, expectedWebTitle = null) {
       } catch (_) {}
     }
 
-    // 4. Atualiza os registros do mapeamento
     const mappings = loadMappings();
     delete mappings[absOriginal];
     mappings[newOriginalPath] = {
@@ -271,7 +264,7 @@ async function saveLocalNow(currentPath, expectedWebTitle = null) {
     };
 
   } catch (error) {
-    console.error("[Save Local] Error during atomic write/rename:", error);
+    console.error("[Save Local] Error during write/rename:", error);
     try {
       if (fs.existsSync(tempSavePath)) {
         await fsp.unlink(tempSavePath);
@@ -304,7 +297,7 @@ function cleanupImportsTemp() {
   try {
     const oneDrive = getOneDriveManager();
     const syncDir = oneDrive.syncDirectory || path.join(os.homedir(), "OneDrive");
-    const importsDir = path.join(syncDir, "Microsoft 365 for Linux Imports");
+    const importsDir = path.join(syncDir, "Office 365 Suite Imports");
     if (fs.existsSync(importsDir)) {
       fs.rmSync(importsDir, { recursive: true, force: true });
     }

@@ -12,23 +12,14 @@ function getImportsDirectory() {
   return path.join(syncDir, "Microsoft 365 for Linux Imports");
 }
 
-/**
- * Extrai qualquer link web válido da Microsoft contido na saída do terminal,
- * removendo códigos de cor ANSI e prefixos de texto.
- */
 function extractWebUrl(rawOutput) {
   if (!rawOutput || typeof rawOutput !== "string") return null;
-
-  // Remove caracteres de escape ANSI de cor do terminal
   const clean = rawOutput.replace(/\x1B\[[0-?]*[ -/]*[@-~]/g, "");
-
-  // Captura URLs completas http/https
   const urls = clean.match(/https?:\/\/[^\s"'`<>]+/gi);
   if (!urls) return null;
 
   for (const u of urls) {
     const lower = u.toLowerCase();
-    // Filtra URLs internas da API de autenticação/Graph
     if (
       !lower.includes("graph.microsoft.com") &&
       !lower.includes("login.microsoftonline.com") &&
@@ -41,14 +32,12 @@ function extractWebUrl(rawOutput) {
 }
 
 /**
- * Consulta o cliente onedrive para obter o link oficial web do documento.
- * Argumentos compatíveis com a versão compilada do abraunegg/onedrive.
+ * Consulta o binário CLI como fallback secundário
  */
-function getFileWebUrlAsync(targetPath) {
+function getFileWebUrlCliFallback(targetPath) {
   return new Promise((resolve) => {
     const confDir = oneDrive.configDirectory || path.join(os.homedir(), ".config", "onedrive");
     const syncDir = oneDrive.syncDirectory || path.join(os.homedir(), "OneDrive");
-
     const relPath = path.relative(syncDir, targetPath);
 
     const args = [
@@ -60,37 +49,18 @@ function getFileWebUrlAsync(targetPath) {
     const options = {
       cwd: syncDir,
       env: { ...process.env, HOME: os.homedir() },
-      timeout: 8000
+      timeout: 5000
     };
 
     execFile(ONEDRIVE_BIN, args, options, (error, stdout, stderr) => {
       const output = (stdout || "") + "\n" + (stderr || "");
-      const link = extractWebUrl(output);
-
-      if (link) {
-        console.log(`[Office Online] Official Web URL found: ${link}`);
-        return resolve(link);
-      }
-
-      // Log resumido para acompanhamento no terminal
-      const cleanOut = output.replace(/\x1B\[[0-?]*[ -/]*[@-~]/g, "").trim();
-      if (cleanOut) {
-        const firstLine = cleanOut.split("\n")
-          .map(l => l.trim())
-          .filter(l => l && !l.startsWith("Reading configuration") && !l.startsWith("Configuration file") && !l.startsWith("Using IPv"))
-          .join(" | ");
-        if (firstLine) {
-          console.log(`[Office Online Link Query] ${firstLine.substring(0, 140)}`);
-        }
-      }
-
-      resolve(null);
+      resolve(extractWebUrl(output));
     });
   });
 }
 
 /**
- * Prepara o arquivo externo para ser acessado pelo OneDrive e obtém sua URL web.
+ * Prepara o documento e obtém seu link oficial online via Microsoft Graph API
  */
 async function getFileWebUrl(filePath) {
   if (!filePath || !fs.existsSync(filePath)) {
@@ -121,11 +91,11 @@ async function getFileWebUrl(filePath) {
 
       if (!fs.existsSync(workingPath)) {
         fs.copyFileSync(absPath, workingPath);
-        console.log(`[Office Import] Copied to OneDrive folder: ${workingPath}`);
+        console.log(`[Office Import] Copied to OneDrive: ${workingPath}`);
       }
       isImported = true;
     } catch (err) {
-      console.warn("[Office Online] Failed to import file, falling back to original:", err.message);
+      console.warn("[Office Online] Fallback to original file:", err.message);
       workingPath = absPath;
     }
   }
@@ -133,8 +103,16 @@ async function getFileWebUrl(filePath) {
   const inside = workingPath.startsWith(syncDir);
   let webUrl = null;
 
-  if (inside) {
-    webUrl = await getFileWebUrlAsync(workingPath);
+  if (inside && oneDrive.isAuthenticated()) {
+    const relPath = path.relative(syncDir, workingPath);
+    
+    // 1. Tenta obter o link instantâneo pela Microsoft Graph API
+    webUrl = await oneDrive.fetchGraphFileWebUrl(relPath);
+
+    // 2. Se a Graph API ainda não encontrou o item (em processo de upload), tenta o fallback CLI
+    if (!webUrl) {
+      webUrl = await getFileWebUrlCliFallback(workingPath);
+    }
   }
 
   return {

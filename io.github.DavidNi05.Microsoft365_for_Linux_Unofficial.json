@@ -1,7 +1,7 @@
 {
   "app-id": "io.github.DavidNi05.Microsoft365_for_Linux_Unofficial",
   "runtime": "org.gnome.Platform",
-  "runtime-version": "48",
+  "runtime-version": "50",
   "sdk": "org.gnome.Sdk",
   "command": "m365-linux",
   "finish-args": [
@@ -23,6 +23,23 @@
   ],
   "modules": [
     {
+      "name": "libxml2",
+      "buildsystem": "cmake-ninja",
+      "sources": [
+        {
+          "type": "git",
+          "url": "https://github.com/GNOME/libxml2.git",
+          "tag": "v2.12.9"
+        }
+      ],
+      "config-opts": [
+        "-DCMAKE_INSTALL_LIBDIR=/app/lib",
+        "-DLIBXML2_WITH_PYTHON=OFF",
+        "-DLIBXML2_WITH_PROGRAMS=OFF",
+        "-DLIBXML2_WITH_TESTS=OFF"
+      ]
+    },
+    {
       "name": "ldc",
       "buildsystem": "simple",
       "sources": [
@@ -34,7 +51,8 @@
       ],
       "build-commands": [
         "mkdir -p /app/ldc",
-        "cp -a . /app/ldc/"
+        "cp -a . /app/ldc/",
+        "cp -a /app/lib/libxml2* /app/ldc/lib/ 2>/dev/null || true"
       ]
     },
     {
@@ -52,7 +70,7 @@
           "DC": "ldc2"
         },
         "append-path": "/app/ldc/bin",
-        "append-ld-library-path": "/app/ldc/lib"
+        "append-ld-library-path": "/app/lib:/app/lib64:/app/ldc/lib"
       },
       "build-commands": [
         "./configure --prefix=/app",

@@ -1,8 +1,8 @@
 [Desktop Entry]
 Type=Application
-Name=Microsoft 365 for Linux (Unofficial)
-GenericName=Microsoft 365 Client
-Comment=Unofficial Microsoft 365 desktop integration for Linux
+Name=Office 365 Suite (Community Client)
+GenericName=Office Suite Client
+Comment=Community desktop integration for Office 365 web apps and OneDrive synchronization
 
 Exec=m365-linux %F
 
@@ -14,7 +14,7 @@ StartupNotify=true
 Categories=Office;Network;
 MimeType=application/msword;application/vnd.openxmlformats-officedocument.wordprocessingml.document;application/vnd.ms-excel;application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;application/vnd.ms-powerpoint;application/vnd.openxmlformats-officedocument.presentationml.presentation;
 
-StartupWMClass=Microsoft 365 for Linux (Unofficial)
+StartupWMClass=Office 365 Suite (Community Client)
 
 Actions=ResetData;
 

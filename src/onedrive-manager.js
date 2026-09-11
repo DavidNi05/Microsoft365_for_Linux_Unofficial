@@ -1,11 +1,5 @@
 const { spawn, exec } = require("child_process");
-const { 
-  Tray, 
-  Menu, 
-  nativeImage, 
-  app, 
-  shell 
-} = require("electron");
+const { Tray, Menu, nativeImage, app, shell } = require("electron");
 const fs = require("fs");
 const path = require("path");
 const os = require("os");
@@ -14,6 +8,7 @@ const ONEDRIVE_BIN = "/app/bin/onedrive";
 const M365_BIN = "/app/bin/m365-linux";
 const TRAY_ICON = "/app/share/microsoft365/assets/m365-tray.png";
 const FOLDER_ICON_SOURCE = "/app/share/microsoft365/assets/onedrive-folder.png";
+const CLIENT_ID = "d50ca740-c83f-4d1b-b616-12c519384f0c";
 
 function getExternalSync() {
   return require("./external-file-sync");
@@ -24,6 +19,7 @@ const configBase = process.env.XDG_CONFIG_HOME || path.join(homeDirectory, ".con
 const configDirectory = path.join(configBase, "onedrive");
 const syncDirectory = path.join(homeDirectory, "OneDrive");
 
+const refreshTokenFile = path.join(configDirectory, "refresh_token");
 const heartbeatFile = path.join(configDirectory, "m365-background-heartbeat");
 const lastSyncFile = path.join(configDirectory, "m365-last-sync");
 const quotaCacheFile = path.join(configDirectory, "m365-quota-cache.json");
@@ -36,9 +32,164 @@ let trayCurrentStatus = "OneDrive Sync: Active";
 let memoryQuotaCache = null;
 let webScrapedQuota = null;
 
+let cachedAccessToken = null;
+let tokenExpiresAt = 0;
+let cachedAvatarData = null;
+
 let uiOpenHandler = null;
 let soundStateGetter = () => true;
 let soundStateSetter = () => {};
+
+function isAuthenticated() {
+  try {
+    if (!fs.existsSync(refreshTokenFile)) return false;
+    const content = fs.readFileSync(refreshTokenFile, "utf8").trim();
+    return content.length > 10;
+  } catch (_) {
+    return false;
+  }
+}
+
+function getStoredRefreshToken() {
+  try {
+    if (!fs.existsSync(refreshTokenFile)) return null;
+    const raw = fs.readFileSync(refreshTokenFile, "utf8").trim();
+    if (raw.startsWith("{")) {
+      const parsed = JSON.parse(raw);
+      return parsed.refresh_token || raw;
+    }
+    return raw;
+  } catch (_) {
+    return null;
+  }
+}
+
+function saveRefreshToken(newToken) {
+  if (!newToken) return;
+  try {
+    ensureDirectories();
+    fs.writeFileSync(refreshTokenFile, newToken.trim(), { encoding: "utf8", mode: 0o600 });
+  } catch (_) {}
+}
+
+async function getGraphAccessToken() {
+  const now = Date.now();
+  if (cachedAccessToken && now < tokenExpiresAt - 60000) {
+    return cachedAccessToken;
+  }
+
+  const rToken = getStoredRefreshToken();
+  if (!rToken) return null;
+
+  try {
+    const params = new URLSearchParams();
+    params.append("client_id", CLIENT_ID);
+    params.append("grant_type", "refresh_token");
+    params.append("refresh_token", rToken);
+
+    const res = await fetch("https://login.microsoftonline.com/common/oauth2/v2.0/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: params.toString()
+    });
+
+    if (!res.ok) return null;
+    const data = await res.json();
+
+    if (data.access_token) {
+      cachedAccessToken = data.access_token;
+      tokenExpiresAt = Date.now() + (Number(data.expires_in) || 3600) * 1000;
+      if (data.refresh_token && data.refresh_token !== rToken) {
+        saveRefreshToken(data.refresh_token);
+      }
+      return cachedAccessToken;
+    }
+  } catch (err) {
+    console.error("[Graph API] Error refreshing access token:", err.message);
+  }
+  return null;
+}
+
+async function fetchGraphUserProfilePicture() {
+  if (cachedAvatarData) return cachedAvatarData;
+  const token = await getGraphAccessToken();
+  if (!token) return null;
+
+  try {
+    const res = await fetch("https://graph.microsoft.com/v1.0/me/photo/$value", {
+      headers: { "Authorization": "Bearer " + token }
+    });
+    if (res.ok) {
+      const buffer = await res.arrayBuffer();
+      const base64 = Buffer.from(buffer).toString("base64");
+      const contentType = res.headers.get("content-type") || "image/jpeg";
+      cachedAvatarData = "data:" + contentType + ";base64," + base64;
+      return cachedAvatarData;
+    }
+  } catch (_) {}
+  return null;
+}
+
+async function fetchGraphQuota() {
+  const token = await getGraphAccessToken();
+  if (!token) return null;
+
+  try {
+    const res = await fetch("https://graph.microsoft.com/v1.0/me/drive", {
+      headers: { "Authorization": "Bearer " + token }
+    });
+    if (!res.ok) return null;
+
+    const data = await res.json();
+    if (data && data.quota) {
+      const totalBytes = data.quota.total || 0;
+      const usedBytes = data.quota.used || 0;
+      const remainingBytes = data.quota.remaining || Math.max(0, totalBytes - usedBytes);
+      
+      const formatGB = (b) => (b / (1024 ** 3)).toFixed(1).replace(".", ",") + " GB";
+      const formatTB = (b) => (b / (1024 ** 4)).toFixed(1).replace(".", ",") + " TB";
+
+      const totalFormatted = totalBytes >= (1024 ** 4) ? formatTB(totalBytes) : formatGB(totalBytes);
+      const usedFormatted = formatGB(usedBytes);
+      const remainingFormatted = remainingBytes >= (1024 ** 4) ? formatTB(remainingBytes) : formatGB(remainingBytes);
+      const percent = totalBytes > 0 ? Math.round((usedBytes / totalBytes) * 100) : 0;
+
+      const quotaResult = {
+        total: totalFormatted,
+        used: usedFormatted,
+        remaining: remainingFormatted,
+        free: remainingFormatted,
+        percentUsed: percent,
+        percent: percent,
+        timestamp: Date.now()
+      };
+
+      saveDiskQuotaCache(quotaResult);
+      return quotaResult;
+    }
+  } catch (err) {
+    console.warn("[Graph API] Error querying drive quota:", err.message);
+  }
+  return null;
+}
+
+async function fetchGraphFileWebUrl(relativePath) {
+  const token = await getGraphAccessToken();
+  if (!token || !relativePath) return null;
+
+  try {
+    const normalized = relativePath.split(path.sep).join("/");
+    const endpoint = `https://graph.microsoft.com/v1.0/me/drive/root:/${encodeURIComponent(normalized)}`;
+    const res = await fetch(endpoint, {
+      headers: { "Authorization": "Bearer " + token }
+    });
+    if (res.ok) {
+      const item = await res.json();
+      if (item && item.webUrl) return item.webUrl;
+    }
+  } catch (_) {}
+  return null;
+}
 
 function setOpenUiHandler(handler) {
   if (typeof handler === "function") uiOpenHandler = handler;
@@ -56,11 +207,9 @@ function setupFolderIcon() {
     if (fs.existsSync(oldSvg)) {
       try { fs.unlinkSync(oldSvg); } catch (_) {}
     }
-
     if (fs.existsSync(FOLDER_ICON_SOURCE) && !fs.existsSync(iconDestination)) {
       fs.copyFileSync(FOLDER_ICON_SOURCE, iconDestination);
     }
-
     if (fs.existsSync(iconDestination)) {
       const fileUri = `file://${iconDestination}`;
       exec(`/usr/bin/gio set "${syncDirectory}" metadata::custom-icon "${fileUri}"`, () => {});
@@ -87,7 +236,7 @@ function spawnM365(args = []) {
     const child = spawn(M365_BIN, args, { detached: true, stdio: "ignore", env: processEnvironment() });
     child.unref();
     return true;
-  } catch (error) {
+  } catch (_) {
     return false;
   }
 }
@@ -110,22 +259,20 @@ async function openOneDriveFolder() {
 function rebuildTrayMenu() {
   if (!tray || tray.isDestroyed()) return;
   const menuTemplate = [
-    { label: "Microsoft 365 for Linux", enabled: false },
+    { label: "Office 365 Suite (Community)", enabled: false },
     { label: trayCurrentStatus, enabled: false },
     { type: "separator" },
     { 
       label: "Notification Sound", 
       type: "checkbox", 
       checked: soundStateGetter(), 
-      click: (menuItem) => {
-        soundStateSetter(menuItem.checked);
-      }
+      click: (menuItem) => soundStateSetter(menuItem.checked)
     },
     { type: "separator" },
-    { label: "Open Microsoft 365", click: () => openMicrosoft365() },
+    { label: "Open Office 365 Suite", click: () => openMicrosoft365() },
     { label: "Open Local OneDrive", click: () => openOneDriveFolder() },
     { type: "separator" },
-    { label: "Quit Microsoft 365", click: () => { requestInterfaceQuit(); app.quit(); } }
+    { label: "Quit Office 365 Suite", click: () => { requestInterfaceQuit(); app.quit(); } }
   ];
   tray.setContextMenu(Menu.buildFromTemplate(menuTemplate));
 }
@@ -133,7 +280,7 @@ function rebuildTrayMenu() {
 function updateTrayStatus(status) {
   if (!tray || tray.isDestroyed()) return;
   trayCurrentStatus = status === "error" ? "OneDrive Sync: Error" : "OneDrive Sync: Active";
-  tray.setToolTip("Microsoft 365 — OneDrive Active");
+  tray.setToolTip("Office 365 — OneDrive Active");
   rebuildTrayMenu();
 }
 
@@ -148,7 +295,7 @@ function createBackgroundTray() {
   if (typeof extSync.setStatusReporter === "function") {
     extSync.setStatusReporter(updateTrayStatus);
   }
-  tray.setToolTip("Microsoft 365 — OneDrive Active");
+  tray.setToolTip("Office 365 — OneDrive Active");
   rebuildTrayMenu();
   tray.on("click", () => openMicrosoft365());
   tray.on("double-click", () => openMicrosoft365());
@@ -167,11 +314,13 @@ function destroyBackgroundTray() {
 }
 
 function writeHeartbeat() {
+  if (!isAuthenticated()) return;
   ensureDirectories();
   fs.writeFileSync(heartbeatFile, String(Date.now()), { encoding: "utf8", mode: 0o600 });
 }
 
 function startHeartbeat() {
+  if (!isAuthenticated()) return;
   writeHeartbeat();
   if (heartbeatTimer) clearInterval(heartbeatTimer);
   heartbeatTimer = setInterval(writeHeartbeat, 5000);
@@ -204,6 +353,7 @@ function getLastSync() {
 }
 
 function triggerImmediateSync() {
+  if (!isAuthenticated()) return false;
   if (monitorProcess && monitorProcess.pid && monitorProcess.exitCode === null) {
     return true;
   }
@@ -213,45 +363,52 @@ function triggerImmediateSync() {
   return true;
 }
 
-function runCommand(args, timeoutMs = 8000) {
+function authenticateWithResponseUrl(responseUrl) {
   ensureDirectories();
   return new Promise((resolve) => {
-    let settled = false;
-    const child = spawn(ONEDRIVE_BIN, [...commonArgs(), ...args], { env: processEnvironment() });
+    const child = spawn(ONEDRIVE_BIN, [
+      ...commonArgs(),
+      "--auth-response",
+      responseUrl
+    ], { env: processEnvironment() });
+
     let output = "";
+    child.stdout.on("data", d => { output += d.toString(); });
+    child.stderr.on("data", d => { output += d.toString(); });
 
-    const timer = setTimeout(() => {
-      if (!settled) {
-        settled = true;
-        try { child.kill("SIGKILL"); } catch (_) {}
-        resolve({ code: -1, output: output || "Timeout" });
+    child.on("close", async (code) => {
+      if (code === 0 || isAuthenticated()) {
+        recordSuccessfulSync();
+        await getGraphAccessToken();
+        await fetchGraphUserProfilePicture();
+        await fetchGraphQuota();
+        resolve({ ok: true, output });
+      } else {
+        resolve({ ok: false, output, code });
       }
-    }, timeoutMs);
+    });
 
-    child.stdout.on("data", data => { output += data.toString(); });
-    child.stderr.on("data", data => { output += data.toString(); });
-    child.on("close", code => {
-      if (!settled) {
-        settled = true;
-        clearTimeout(timer);
-        resolve({ code, output });
-      }
+    child.on("error", (err) => {
+      resolve({ ok: false, error: err.message });
     });
   });
 }
 
 function runInitialSync(onOutput) {
+  if (!isAuthenticated()) {
+    return Promise.resolve({ code: -1, output: "Not authenticated" });
+  }
   ensureDirectories();
   return new Promise((resolve, reject) => {
     syncProcess = spawn(ONEDRIVE_BIN, [...commonArgs(), "--sync"], { env: processEnvironment() });
     let completeOutput = "";
-    syncProcess.stdout.on("data", data => { 
-      completeOutput += data.toString(); 
-      if (onOutput) onOutput(data.toString()); 
+    syncProcess.stdout.on("data", d => { 
+      completeOutput += d.toString(); 
+      if (onOutput) onOutput(d.toString()); 
     });
-    syncProcess.stderr.on("data", data => { 
-      completeOutput += data.toString(); 
-      if (onOutput) onOutput(data.toString()); 
+    syncProcess.stderr.on("data", d => { 
+      completeOutput += d.toString(); 
+      if (onOutput) onOutput(d.toString()); 
     });
     syncProcess.on("close", code => { 
       syncProcess = null; 
@@ -266,6 +423,7 @@ function runInitialSync(onOutput) {
 }
 
 function startMonitor(onOutput) {
+  if (!isAuthenticated()) return null;
   ensureDirectories();
   if (monitorProcess && monitorProcess.exitCode === null) return monitorProcess;
 
@@ -273,13 +431,6 @@ function startMonitor(onOutput) {
 
   monitorProcess.stdout.on("data", data => {
     const text = data.toString();
-    const lines = text.split("\n");
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (trimmed) {
-        console.log(`[OneDrive Monitor] ${trimmed}`);
-      }
-    }
     if (text.includes("Sync with Microsoft OneDrive is complete")) {
       recordSuccessfulSync();
       try {
@@ -292,15 +443,7 @@ function startMonitor(onOutput) {
     if (onOutput) onOutput(text);
   });
 
-  monitorProcess.stderr.on("data", data => {
-    const text = data.toString().trim();
-    if (text) {
-      console.error(`[OneDrive Monitor Error] ${text}`);
-    }
-  });
-
-  monitorProcess.on("close", (code, signal) => {
-    console.log(`[OneDrive Monitor] Process exited with code ${code}, signal: ${signal}`);
+  monitorProcess.on("close", () => {
     monitorProcess = null;
   });
 
@@ -319,13 +462,6 @@ function monitorRunning() {
 function stopSync() {
   if (syncProcess && syncProcess.exitCode === null) syncProcess.kill("SIGTERM");
   syncProcess = null;
-}
-
-function setWebScrapedQuota(quotaObj) {
-  if (quotaObj && quotaObj.total) {
-    webScrapedQuota = { ...quotaObj, timestamp: Date.now() };
-    saveDiskQuotaCache(webScrapedQuota);
-  }
 }
 
 function loadDiskQuotaCache() {
@@ -351,35 +487,50 @@ function saveDiskQuotaCache(quotaData) {
   } catch (_) {}
 }
 
-async function getQuota(force = false) {
+async function getQuota() {
   if (webScrapedQuota) return webScrapedQuota;
-  const cached = loadDiskQuotaCache();
-  return cached || {
+  const graphQ = await fetchGraphQuota();
+  if (graphQ) return graphQ;
+  return loadDiskQuotaCache() || {
     total: "1 TB",
-    used: "23,5 GB",
-    remaining: "976,5 GB",
-    free: "976,5 GB",
-    percentUsed: 2,
-    percent: 2,
+    used: "0 GB",
+    remaining: "1 TB",
+    free: "1 TB",
+    percentUsed: 0,
+    percent: 0,
     timestamp: Date.now()
   };
 }
 
 async function getStatus() {
   ensureDirectories();
-  const syncStatus = await runCommand(["--display-sync-status"], 4000);
+  if (!isAuthenticated()) {
+    return {
+      connected: false,
+      background: false,
+      monitor: false,
+      lastSync: null,
+      syncDirectory,
+      syncStatus: "Not Authenticated",
+      quota: null
+    };
+  }
+
   return {
-    connected: syncStatus.code === 0,
+    connected: true,
     background: backgroundAlive(),
     monitor: monitorRunning(),
     lastSync: getLastSync(),
     syncDirectory,
-    syncStatus: syncStatus.output,
-    quota: loadDiskQuotaCache() || await getQuota(false)
+    syncStatus: monitorRunning() ? "Active (Monitor)" : "Active",
+    quota: await getQuota()
   };
 }
 
 async function syncNow(onOutput) {
+  if (!isAuthenticated()) {
+    return { code: -1, skipped: true, output: "Account not authenticated." };
+  }
   triggerImmediateSync();
   if (backgroundAlive()) {
     return { code: 0, skipped: true, output: "Monitor active, inotify handling changes." };
@@ -388,9 +539,16 @@ async function syncNow(onOutput) {
 }
 
 module.exports = {
+  CLIENT_ID,
   configDirectory,
   syncDirectory,
   ensureDirectories,
+  isAuthenticated,
+  getGraphAccessToken,
+  fetchGraphUserProfilePicture,
+  fetchGraphQuota,
+  fetchGraphFileWebUrl,
+  authenticateWithResponseUrl,
   runInitialSync,
   startMonitor,
   stopMonitor,
@@ -407,7 +565,6 @@ module.exports = {
   openMicrosoft365,
   requestInterfaceQuit,
   updateTrayStatus,
-  setWebScrapedQuota,
   getQuota,
   getStatus,
   syncNow,

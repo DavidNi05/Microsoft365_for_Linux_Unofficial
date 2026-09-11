@@ -7,9 +7,9 @@ export ELECTRON_DISABLE_SECURITY_WARNINGS=true
 
 # Rotina de Limpeza Profunda / Redefinição de Fábrica
 if [ "$1" = "--reset" ] || [ "$1" = "--factory-reset" ] || [ "$1" = "--clean-uninstall" ]; then
-    echo "[Microsoft 365] Executando limpeza profunda de configurações e dados..."
+    echo "[Office 365 Suite] Executando limpeza profunda de configurações e dados..."
     
-    # 1. Encerra qualquer processo em execução
+    # 1. Encerra qualquer processo do daemon em execução
     pkill -f "onedrive --confdir" 2>/dev/null || true
     
     # 2. Remove atalhos e inicialização automática criados no host
@@ -23,13 +23,15 @@ if [ "$1" = "--reset" ] || [ "$1" = "--factory-reset" ] || [ "$1" = "--clean-uni
     # 4. Remove configurações internas da sessão e do Electron no sandbox
     if [ -n "$XDG_CONFIG_HOME" ]; then
         rm -rf "$XDG_CONFIG_HOME/Microsoft 365 for Linux (Unofficial)" 2>/dev/null || true
+        rm -rf "$XDG_CONFIG_HOME/Office 365 Suite (Community Client)" 2>/dev/null || true
         rm -rf "$XDG_CONFIG_HOME/onedrive" 2>/dev/null || true
     fi
     if [ -n "$XDG_DATA_HOME" ]; then
         rm -rf "$XDG_DATA_HOME/Microsoft 365 for Linux (Unofficial)" 2>/dev/null || true
+        rm -rf "$XDG_DATA_HOME/Office 365 Suite (Community Client)" 2>/dev/null || true
     fi
 
-    echo "[Microsoft 365] Limpeza concluída com sucesso. Todos os dados foram redefinidos."
+    echo "[Office 365 Suite] Limpeza concluída com sucesso. Todos os dados foram redefinidos."
     exit 0
 fi
 

@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: file:;">
-  <title>Microsoft 365 for Linux (Unofficial)</title>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: file: https:;">
+  <title>Office 365 Suite (Community Client)</title>
   <style>
     :root {
       --current-accent: #185abd;
@@ -32,11 +32,18 @@
       user-select: none;
     }
 
+    /* Client Login Mode: Ocupa 100% da tela escondendo barra lateral e topo */
+    body.client-login-mode .sidebar,
+    body.client-login-mode .topbar,
+    body.client-login-mode .hover-trigger-zone {
+      display: none !important;
+    }
+
     .hover-trigger-zone {
       position: fixed;
       left: 0;
       top: 0;
-      width: 14px;
+      width: 18px;
       height: 100vh;
       z-index: 9999;
       pointer-events: auto;
@@ -49,14 +56,16 @@
 
     .sidebar {
       width: 230px;
+      min-width: 0;
       height: 100vh;
       background-color: var(--leftbar-bg);
       border-right: 1px solid #e2e8f0;
       display: flex;
       flex-direction: column;
       flex-shrink: 0;
-      z-index: 10;
-      transition: background-color 0.25s ease;
+      z-index: 100;
+      transition: width 0.28s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.25s ease, border-color 0.25s ease;
+      overflow: hidden;
     }
 
     .sidebar.dark-themed-sidebar {
@@ -128,6 +137,12 @@
       align-items: center !important;
     }
 
+    .sidebar.autohide-collapsed {
+      width: 0 !important;
+      min-width: 0 !important;
+      border-right-color: transparent !important;
+    }
+
     .brand-header {
       height: 58px;
       display: flex;
@@ -136,6 +151,7 @@
       gap: 12px;
       border-bottom: 1px solid #e2e8f0;
       background-color: rgba(255, 255, 255, 0.5);
+      flex-shrink: 0;
     }
 
     .brand-logo {
@@ -201,6 +217,7 @@
       text-transform: uppercase;
       letter-spacing: 0.6px;
       padding: 12px 10px 6px 10px;
+      white-space: nowrap;
     }
 
     .nav-item {
@@ -219,6 +236,7 @@
       cursor: pointer;
       text-align: left;
       transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+      white-space: nowrap;
     }
 
     .nav-item::before {
@@ -291,6 +309,7 @@
       flex-direction: column;
       gap: 3px;
       background-color: rgba(248, 250, 252, 0.5);
+      flex-shrink: 0;
     }
 
     .main-wrapper {
@@ -396,6 +415,33 @@
       gap: 10px;
     }
 
+    .user-avatar-container {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      overflow: hidden;
+      border: 2px solid rgba(255, 255, 255, 0.6);
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+      cursor: pointer;
+      transition: transform 0.2s ease, border-color 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    .user-avatar-container:hover {
+      transform: scale(1.08);
+      border-color: #ffffff;
+    }
+
+    #userProfileAvatar {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
     .status-badge {
       display: inline-flex;
       align-items: center;
@@ -406,6 +452,11 @@
       background-color: rgba(255, 255, 255, 0.2);
       border: 1px solid rgba(255, 255, 255, 0.3);
       transition: all 0.2s ease;
+      cursor: pointer;
+    }
+
+    .status-badge:hover {
+      background-color: rgba(255, 255, 255, 0.3);
     }
 
     .status-dot {
@@ -533,13 +584,44 @@
       align-items: center;
       justify-content: center;
     }
+
+    /* Modal Fluent Design In-Page para Switch Account */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(15, 23, 42, 0.5);
+      backdrop-filter: blur(6px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+    }
+    .modal-overlay.active { display: flex; }
+    .confirm-card {
+      width: 440px;
+      background: #ffffff;
+      border-radius: 12px;
+      border: 1px solid #cbd5e1;
+      box-shadow: 0 24px 48px rgba(0, 0, 0, 0.25);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .confirm-title { font-size: 16px; font-weight: 700; color: #0f172a; display: flex; align-items: center; gap: 10px; }
+    .confirm-desc { font-size: 13px; color: #475569; line-height: 1.5; }
+    .confirm-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; }
+    .confirm-btn-secondary { background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 18px; font-size: 13px; font-weight: 500; cursor: pointer; }
+    .confirm-btn-secondary:hover { background: #e2e8f0; }
+    .confirm-btn-danger { background: #d83b01; color: #ffffff; border: none; border-radius: 6px; padding: 8px 20px; font-size: 13px; font-weight: 600; cursor: pointer; }
+    .confirm-btn-danger:hover { background: #b83301; }
   </style>
 </head>
 <body>
 
   <div class="hover-trigger-zone" id="hoverTriggerZone"></div>
 
-  <!-- ================= Sidebar Fluent ================= -->
+  <!-- Sidebar Fluent -->
   <aside class="sidebar" id="appSidebar">
     <div class="brand-header">
       <div class="brand-logo">
@@ -551,69 +633,69 @@
         </svg>
       </div>
       <div class="brand-title-group">
-        <span class="brand-title">Microsoft 365</span>
-        <span class="brand-subtitle">for Linux (Unofficial)</span>
+        <span class="brand-title">Office 365</span>
+        <span class="brand-subtitle">Community Client</span>
       </div>
     </div>
 
     <div class="nav-scrollable">
-      <div class="section-title">Office Apps</div>
+      <div class="section-title">Apps</div>
 
-      <button class="nav-item active" data-service="word" data-title="Microsoft Word" data-color="#185abd" title="Word">
+      <button class="nav-item active" data-service="word" data-title="Word" data-color="#185abd" title="Word">
         <span class="nav-icon"><img src="assets/icons/Word.png" alt="Word"></span>
         <span class="nav-label">Word</span>
       </button>
 
-      <button class="nav-item" data-service="excel" data-title="Microsoft Excel" data-color="#107c41" title="Excel">
+      <button class="nav-item" data-service="excel" data-title="Excel" data-color="#107c41" title="Excel">
         <span class="nav-icon"><img src="assets/icons/Excel.png" alt="Excel"></span>
         <span class="nav-label">Excel</span>
       </button>
 
-      <button class="nav-item" data-service="powerpoint" data-title="Microsoft PowerPoint" data-color="#d83b01" title="PowerPoint">
+      <button class="nav-item" data-service="powerpoint" data-title="PowerPoint" data-color="#d83b01" title="PowerPoint">
         <span class="nav-icon"><img src="assets/icons/Powerpoint.png" alt="PowerPoint"></span>
         <span class="nav-label">PowerPoint</span>
       </button>
 
-      <button class="nav-item" data-service="onenote" data-title="Microsoft OneNote" data-color="#7719aa" title="OneNote">
+      <button class="nav-item" data-service="onenote" data-title="OneNote" data-color="#7719aa" title="OneNote">
         <span class="nav-icon"><img src="assets/icons/OneNote.png" alt="OneNote"></span>
         <span class="nav-label">OneNote</span>
       </button>
 
-      <button class="nav-item" data-service="outlook" data-title="Microsoft Outlook" data-color="#0078d4" title="Outlook">
+      <button class="nav-item" data-service="outlook" data-title="Outlook" data-color="#0078d4" title="Outlook">
         <span class="nav-icon"><img src="assets/icons/Outlook.png" alt="Outlook"></span>
         <span class="nav-label">Outlook</span>
       </button>
 
-      <button class="nav-item" data-service="teams" data-title="Microsoft Teams" data-color="#505ac9" title="Teams">
+      <button class="nav-item" data-service="teams" data-title="Teams" data-color="#505ac9" title="Teams">
         <span class="nav-icon"><img src="assets/icons/Teams.png" alt="Teams"></span>
         <span class="nav-label">Teams</span>
       </button>
 
-      <button class="nav-item" data-service="copilot" data-title="Microsoft Copilot" data-color="#0f6cbd" title="Copilot">
+      <button class="nav-item" data-service="copilot" data-title="Copilot" data-color="#0f6cbd" title="Copilot">
         <span class="nav-icon"><img src="assets/icons/Copilot.png" alt="Copilot"></span>
         <span class="nav-label">Copilot</span>
       </button>
 
       <div class="section-title">Productivity & Creation</div>
 
-      <button class="nav-item" data-service="todo" data-title="Microsoft To Do" data-color="#2564cf" title="To Do">
+      <button class="nav-item" data-service="todo" data-title="To Do" data-color="#2564cf" title="To Do">
         <span class="nav-icon"><img src="assets/icons/To%20Do.png" alt="To Do"></span>
         <span class="nav-label">To Do</span>
       </button>
 
-      <button class="nav-item" data-service="designer" data-title="Microsoft Designer" data-color="#bc1962" title="Designer">
+      <button class="nav-item" data-service="designer" data-title="Designer" data-color="#bc1962" title="Designer">
         <span class="nav-icon"><img src="assets/icons/Designer.png" alt="Designer"></span>
         <span class="nav-label">Designer</span>
       </button>
 
-      <button class="nav-item" data-service="clipchamp" data-title="Microsoft Clipchamp" data-color="#6b3ce9" title="Clipchamp">
+      <button class="nav-item" data-service="clipchamp" data-title="Clipchamp" data-color="#6b3ce9" title="Clipchamp">
         <span class="nav-icon"><img src="assets/icons/Clipchamp.png" alt="Clipchamp"></span>
         <span class="nav-label">Clipchamp</span>
       </button>
 
       <div class="section-title">Local & Cloud</div>
 
-      <button class="nav-item" data-service="onedrive" data-title="Microsoft OneDrive" data-color="#0078d4" title="OneDrive Web">
+      <button class="nav-item" data-service="onedrive" data-title="OneDrive" data-color="#0078d4" title="OneDrive Web">
         <span class="nav-icon"><img src="assets/icons/OneDrive.png" alt="OneDrive Web"></span>
         <span class="nav-label">OneDrive Web</span>
       </button>
@@ -648,7 +730,7 @@
     </div>
   </aside>
 
-  <!-- ================= Layout Principal ================= -->
+  <!-- Layout Principal -->
   <div class="main-wrapper">
     <header class="topbar" id="appTopbar">
       <div class="nav-controls">
@@ -661,16 +743,19 @@
         <button class="icon-button" id="btnReload" title="Reload">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
         </button>
-        <button class="icon-button" id="btnHome" title="Word Home">
+        <button class="icon-button" id="btnHome" title="Home">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
         </button>
       </div>
 
       <div class="topbar-center">
-        <span class="topbar-title" id="topbarTitle">Microsoft Word</span>
+        <span class="topbar-title" id="topbarTitle">Word</span>
       </div>
 
       <div class="topbar-actions">
+        <div class="user-avatar-container" id="userAvatarContainer" title="Switch Account" style="display: none;">
+          <img id="userProfileAvatar" src="" alt="Profile">
+        </div>
         <button class="icon-button" id="btnToggleSound" title="Toggle notification sound">
           <svg id="iconSoundOn" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
             <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
@@ -680,7 +765,7 @@
           </svg>
         </button>
 
-        <div class="status-badge disconnected" id="syncStatusBadge">
+        <div class="status-badge disconnected" id="syncStatusBadge" title="Click to Connect Account">
           <span class="status-dot"></span>
           <span class="status-text" id="syncStatusPill">OneDrive: Not Connected</span>
         </div>
@@ -700,11 +785,29 @@
       <div class="toast-spinner"></div>
       <div class="toast-content">
         <span class="toast-title" id="toastTitle">Opening document...</span>
-        <span class="toast-status" id="toastStatus">Synchronizing with Microsoft 365</span>
+        <span class="toast-status" id="toastStatus">Synchronizing with cloud storage</span>
       </div>
     </div>
 
     <main class="view-container"></main>
+  </div>
+
+  <!-- Modal Switch Account -->
+  <div id="switchAccountModal" class="modal-overlay">
+    <div class="confirm-card">
+      <div class="confirm-title">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0078d4" stroke-width="2">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+          <circle cx="12" cy="7" r="4"></circle>
+        </svg>
+        Switch Account
+      </div>
+      <div class="confirm-desc">Do you want to switch accounts? This will clear your current session and require signing in again.</div>
+      <div class="confirm-actions">
+        <button class="confirm-btn-secondary" onclick="closeSwitchModal()">Cancel</button>
+        <button class="confirm-btn-danger" onclick="confirmSwitchAccount()">Switch Account</button>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -717,6 +820,9 @@
       const topbarProgress = document.getElementById("topbarProgress");
       const syncStatusBadge = document.getElementById("syncStatusBadge");
       const syncStatusPill = document.getElementById("syncStatusPill");
+      const userAvatarContainer = document.getElementById("userAvatarContainer");
+      const userProfileAvatar = document.getElementById("userProfileAvatar");
+      const switchAccountModal = document.getElementById("switchAccountModal");
 
       const fileLoadingToast = document.getElementById("fileLoadingToast");
       const toastTitle = document.getElementById("toastTitle");
@@ -726,8 +832,60 @@
       const iconSoundOn = document.getElementById("iconSoundOn");
       const iconSoundOff = document.getElementById("iconSoundOff");
 
-      let toastTimeout = null;
       let currentActiveServiceColor = "#185abd";
+      let autohideTimeout = null;
+      let sidebarAnimRaf = null;
+
+      function animateSidebarResize() {
+        if (sidebarAnimRaf) cancelAnimationFrame(sidebarAnimRaf);
+        const startTime = performance.now();
+        const duration = 300;
+
+        function frame(now) {
+          const elapsed = now - startTime;
+          const currentWidth = appSidebar.getBoundingClientRect().width;
+          window.electronAPI?.notifyResize(Math.round(currentWidth));
+          if (elapsed < duration) {
+            sidebarAnimRaf = requestAnimationFrame(frame);
+          } else {
+            const finalWidth = appSidebar.getBoundingClientRect().width;
+            window.electronAPI?.notifyResize(Math.round(finalWidth));
+            sidebarAnimRaf = null;
+          }
+        }
+        sidebarAnimRaf = requestAnimationFrame(frame);
+      }
+
+      function setAvatarImage(dataUrl) {
+        if (userAvatarContainer && userProfileAvatar && dataUrl) {
+          userProfileAvatar.src = dataUrl;
+          userAvatarContainer.style.display = "flex";
+        }
+      }
+
+      if (window.electronAPI?.getUserAvatar) {
+        window.electronAPI.getUserAvatar().then(data => { if (data) setAvatarImage(data); });
+      }
+      if (window.electronAPI?.onUpdateUserAvatar) {
+        window.electronAPI.onUpdateUserAvatar((data) => setAvatarImage(data));
+      }
+
+      // Ao clicar na foto de perfil, exibe o modal Fluent de troca de conta
+      userAvatarContainer?.addEventListener("click", () => {
+        switchAccountModal?.classList.add("active");
+      });
+
+      window.closeSwitchModal = function() {
+        switchAccountModal?.classList.remove("active");
+      };
+
+      window.confirmSwitchAccount = async function() {
+        switchAccountModal?.classList.remove("active");
+        if (window.electronAPI?.clearSessionData) {
+          await window.electronAPI.clearSessionData();
+        }
+        window.electronAPI?.startUnifiedLogin();
+      };
 
       function updateLocalButtonsVisibility(enabled) {
         const btnOpenLocal = document.getElementById("btnOpenLocal");
@@ -751,8 +909,7 @@
         const r = (rgb >> 16) & 0xff;
         const g = (rgb >> 8) & 0xff;
         const b = (rgb >> 0) & 0xff;
-        const luma = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-        return luma < 155;
+        return (0.2126 * r + 0.7152 * g + 0.0722 * b) < 155;
       }
 
       function applyLeftbarTheme() {
@@ -781,41 +938,60 @@
         } else {
           appSidebar.classList.remove("compact-mode");
         }
+        animateSidebarResize();
       }
 
       function applyAutoHideSidebar(isEnabled) {
         if (isEnabled) {
           document.body.classList.add("autohide-enabled");
+          appSidebar.classList.add("autohide-collapsed");
         } else {
           document.body.classList.remove("autohide-enabled");
+          appSidebar.classList.remove("autohide-collapsed");
+          const isCompact = localStorage.getItem("pref_compact_nav") === "true";
+          applyCompactSidebar(isCompact);
+        }
+        animateSidebarResize();
+      }
+
+      function revealSidebar() {
+        if (autohideTimeout) { clearTimeout(autohideTimeout); autohideTimeout = null; }
+        if (document.body.classList.contains("autohide-enabled")) {
+          const isCompact = localStorage.getItem("pref_compact_nav") === "true";
+          appSidebar.classList.remove("autohide-collapsed");
+          applyCompactSidebar(isCompact);
+          animateSidebarResize();
         }
       }
 
-      hoverTriggerZone?.addEventListener("mouseenter", () => {
+      function hideSidebar() {
         if (document.body.classList.contains("autohide-enabled")) {
-          applyCompactSidebar(false);
-          window.electronAPI?.notifyResize(230);
+          autohideTimeout = setTimeout(() => {
+            appSidebar.classList.add("autohide-collapsed");
+            animateSidebarResize();
+          }, 240);
         }
-      });
+      }
 
-      appSidebar?.addEventListener("mouseenter", () => {
-        if (document.body.classList.contains("autohide-enabled")) {
-          applyCompactSidebar(false);
-          window.electronAPI?.notifyResize(230);
-        }
-      });
-
-      appSidebar?.addEventListener("mouseleave", () => {
-        if (document.body.classList.contains("autohide-enabled")) {
-          applyCompactSidebar(true);
-          window.electronAPI?.notifyResize(54);
-        }
-      });
+      hoverTriggerZone?.addEventListener("mouseenter", revealSidebar);
+      appSidebar?.addEventListener("mouseenter", revealSidebar);
+      appSidebar?.addEventListener("mouseleave", hideSidebar);
 
       applyTopbarTheme("#185abd");
       applyLeftbarTheme();
 
-      // Carrega estado unificado de preferências
+      if (window.electronAPI?.onAuthStateChanged) {
+        window.electronAPI.onAuthStateChanged(({ authenticated }) => {
+          if (authenticated) {
+            document.body.classList.remove("client-login-mode");
+            const isAutoHide = localStorage.getItem("pref_autohide_sidebar") === "true";
+            applyAutoHideSidebar(isAutoHide);
+          } else {
+            document.body.classList.add("client-login-mode");
+          }
+        });
+      }
+
       if (window.electronAPI?.getAllPreferences) {
         window.electronAPI.getAllPreferences().then(prefs => {
           if (prefs) {
@@ -824,12 +1000,12 @@
             localStorage.setItem("pref_default_app", prefs.default_app || "word");
             localStorage.setItem("pref_autohide_sidebar", String(prefs.autohide_sidebar || false));
             localStorage.setItem("pref_compact_nav", String(prefs.compact_nav || false));
-            localStorage.setItem("pref_native_onedrive_sync", String(prefs.native_onedrive_sync || false));
+            localStorage.setItem("pref_native_onedrive_sync", String(prefs.native_onedrive_sync !== false));
 
             applyLeftbarTheme();
-            applyAutoHideSidebar(prefs.autohide_sidebar === true);
             applyCompactSidebar(prefs.compact_nav === true);
-            updateLocalButtonsVisibility(prefs.native_onedrive_sync === true);
+            applyAutoHideSidebar(prefs.autohide_sidebar === true);
+            updateLocalButtonsVisibility(prefs.native_onedrive_sync !== false);
 
             const targetApp = (prefs.default_app === "last_used")
               ? (localStorage.getItem("last_active_service") || "word")
@@ -838,12 +1014,6 @@
             if (startupBtn) startupBtn.click();
           }
         });
-      } else {
-        const autoHideActive = localStorage.getItem("pref_autohide_sidebar") === "true";
-        const compactActive = localStorage.getItem("pref_compact_nav") === "true";
-        applyAutoHideSidebar(autoHideActive);
-        applyCompactSidebar(compactActive);
-        updateLocalButtonsVisibility(localStorage.getItem("pref_native_onedrive_sync") === "true");
       }
 
       if (window.electronAPI?.onConfigUpdated) {
@@ -854,26 +1024,17 @@
           } else if (key === "leftbar_custom_color") {
             localStorage.setItem("pref_leftbar_custom_color", value);
             applyLeftbarTheme();
-          } else if (key === "compact_nav") {
-            localStorage.setItem("pref_compact_nav", value);
-            applyCompactSidebar(Boolean(value));
-            window.electronAPI?.notifyResize(value ? 54 : 230);
           } else if (key === "autohide_sidebar") {
-            localStorage.setItem("pref_autohide_sidebar", value);
-            applyAutoHideSidebar(Boolean(value));
-            if (Boolean(value)) {
-              applyCompactSidebar(true);
-              window.electronAPI?.notifyResize(54);
-            } else {
-              const comp = localStorage.getItem("pref_compact_nav") === "true";
-              applyCompactSidebar(comp);
-              window.electronAPI?.notifyResize(comp ? 54 : 230);
-            }
+            localStorage.setItem("pref_autohide_sidebar", String(value));
+            applyAutoHideSidebar(value === true);
+          } else if (key === "compact_nav") {
+            localStorage.setItem("pref_compact_nav", String(value));
+            applyCompactSidebar(value === true);
+          } else if (key === "native_onedrive_sync") {
+            localStorage.setItem("pref_native_onedrive_sync", String(value));
+            updateLocalButtonsVisibility(value === true);
           } else if (key === "default_app") {
             localStorage.setItem("pref_default_app", value);
-          } else if (key === "native_onedrive_sync") {
-            localStorage.setItem("pref_native_onedrive_sync", value);
-            updateLocalButtonsVisibility(Boolean(value));
           }
         });
       }
@@ -889,6 +1050,14 @@
           }
         });
       }
+
+      syncStatusBadge?.addEventListener("click", async () => {
+        if (!window.electronAPI) return;
+        const status = await window.electronAPI.checkAuthStatus?.();
+        if (!status || !status.authenticated) {
+          window.electronAPI.startUnifiedLogin();
+        }
+      });
 
       function updateSoundUI(isSoundOn) {
         if (iconSoundOn && iconSoundOff) {
@@ -911,20 +1080,6 @@
         await window.electronAPI.setSoundEnabled(next);
         updateSoundUI(next);
       });
-
-      if (window.electronAPI?.onSoundSettingChanged) {
-        window.electronAPI.onSoundSettingChanged((enabled) => {
-          updateSoundUI(enabled);
-        });
-      }
-
-      function showFileLoadingToast(title, statusText) {
-        if (toastTimeout) clearTimeout(toastTimeout);
-        if (toastTitle) toastTitle.textContent = title;
-        if (toastStatus) toastStatus.textContent = statusText;
-        if (fileLoadingToast) fileLoadingToast.classList.add("visible");
-        if (topbarProgress) topbarProgress.classList.add("active");
-      }
 
       if (window.electronAPI?.onBrowserLoading) {
         window.electronAPI.onBrowserLoading((isLoading) => {
@@ -971,16 +1126,12 @@
         if (!window.electronAPI) return;
         const res = await window.electronAPI.openFileDialog();
         if (res && !res.canceled && res.filePath) {
-          const fileName = res.filePath.split("/").pop() || "Document";
-          showFileLoadingToast(`Opening: ${fileName}`, "Checking local synchronization...");
           window.electronAPI.openExternalFile(res.filePath);
         }
       });
 
       document.getElementById("btnSaveLocal")?.addEventListener("click", async () => {
         if (!window.electronAPI) return;
-        if (syncStatusPill) syncStatusPill.textContent = "OneDrive: Sync";
-        if (syncStatusBadge) syncStatusBadge.className = "status-badge synced";
         await window.electronAPI.saveLocalNow();
       });
     });

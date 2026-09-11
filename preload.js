@@ -2,8 +2,6 @@ const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("electronAPI", {
   notifyResize: (newWidth) => ipcRenderer.send("window-resize-notify", newWidth),
-
-  // Notificação oficial Fluent 2
   showFluentToast: (options) => ipcRenderer.invoke("show-fluent-toast", options),
 
   // Navegação e Serviços
@@ -13,7 +11,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   browserReload: () => ipcRenderer.send("browser-reload"),
   browserHome: () => ipcRenderer.send("browser-home"),
 
-  // Configuração de Áudio das Notificações Fluent
+  // Áudio
   getSoundEnabled: () => ipcRenderer.invoke("get-sound-enabled"),
   setSoundEnabled: (enabled) => ipcRenderer.invoke("set-sound-enabled", enabled),
   onSoundSettingChanged: (callback) => ipcRenderer.on("sound-setting-changed", (_event, val) => callback(val)),
@@ -25,11 +23,17 @@ contextBridge.exposeInMainWorld("electronAPI", {
   syncOneDriveNow: () => ipcRenderer.invoke("onedrive-sync-now"),
   saveLocalNow: () => ipcRenderer.invoke("office-save-local-now"),
 
+  // Login Único Nativo (SSO) e Avatar
+  startUnifiedLogin: () => ipcRenderer.invoke("start-unified-login"),
+  checkAuthStatus: () => ipcRenderer.invoke("check-auth-status"),
+  getUserAvatar: () => ipcRenderer.invoke("get-user-avatar"),
+  onUpdateUserAvatar: (callback) => ipcRenderer.on("update-user-avatar", (_event, val) => callback(val)),
+
   // Diálogo e Arquivos Externos
   openFileDialog: () => ipcRenderer.invoke("open-file-dialog"),
   openExternalFile: (filePath) => ipcRenderer.invoke("office-open-external-file", filePath),
 
-  // Configurações & Preferências do Sistema
+  // Configurações & Manutenção do Sistema
   getAllPreferences: () => ipcRenderer.invoke("get-all-preferences"),
   setAppPreference: (key, val) => ipcRenderer.send("set-app-preference", key, val),
   setDesktopShortcut: (enable) => ipcRenderer.invoke("set-desktop-shortcut", enable),
@@ -38,8 +42,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
   selectFolderDialog: () => ipcRenderer.invoke("select-folder-dialog"),
   getOneDriveLogs: () => ipcRenderer.invoke("get-onedrive-logs"),
   factoryReset: () => ipcRenderer.invoke("factory-reset"),
-
-  // Desinstalação Nativa
   uninstallApp: (deleteData) => ipcRenderer.invoke("uninstall-app", { deleteData }),
 
   // Eventos Push (Main -> Renderer)

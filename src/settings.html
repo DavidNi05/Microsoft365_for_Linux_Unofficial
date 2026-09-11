@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Settings & Preferences - Microsoft 365 for Linux</title>
+  <title>Settings & Preferences - Office 365 Suite</title>
   <style>
     :root {
       --bg-page: #f8fafc;
@@ -272,11 +272,12 @@
       white-space: nowrap;
     }
 
+    /* Modal Fluent Design In-Page */
     .modal-overlay {
       position: fixed;
       top: 0; left: 0; width: 100vw; height: 100vh;
-      background: rgba(15, 23, 42, 0.45);
-      backdrop-filter: blur(4px);
+      background: rgba(15, 23, 42, 0.5);
+      backdrop-filter: blur(6px);
       display: none;
       align-items: center;
       justify-content: center;
@@ -291,7 +292,7 @@
       background: #ffffff;
       border-radius: 12px;
       border: 1px solid #cbd5e1;
-      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.18);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
       overflow: hidden;
       display: flex;
       flex-direction: column;
@@ -306,10 +307,10 @@
     }
 
     .modal-title { font-size: 15px; font-weight: 600; color: var(--text-primary); }
-    .modal-close { background: none; border: none; font-size: 18px; cursor: pointer; color: var(--text-secondary); }
+    .modal-close { background: none; border: none; font-size: 20px; cursor: pointer; color: var(--text-secondary); line-height: 1; }
 
     .modal-body {
-      padding: 16px 20px;
+      padding: 18px 20px;
       max-height: 380px;
       overflow-y: auto;
       font-family: monospace;
@@ -319,6 +320,76 @@
       color: #e2e8f0;
       white-space: pre-wrap;
     }
+
+    .confirm-card {
+      width: 480px;
+      background: #ffffff;
+      border-radius: 12px;
+      border: 1px solid #cbd5e1;
+      box-shadow: 0 24px 48px rgba(0, 0, 0, 0.25);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .confirm-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .confirm-desc {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    .confirm-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 6px;
+    }
+
+    .confirm-btn-secondary {
+      background: #f1f5f9;
+      color: #334155;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 8px 18px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .confirm-btn-secondary:hover { background: #e2e8f0; }
+
+    .confirm-btn-primary {
+      background: #0078d4;
+      color: #ffffff;
+      border: none;
+      border-radius: 6px;
+      padding: 8px 20px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .confirm-btn-primary:hover { background: #106ebe; }
+
+    .confirm-btn-danger {
+      background: #d83b01;
+      color: #ffffff;
+      border: none;
+      border-radius: 6px;
+      padding: 8px 20px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .confirm-btn-danger:hover { background: #b83301; }
   </style>
 </head>
 <body>
@@ -334,7 +405,7 @@
       </div>
       <div class="header-text">
         <h1>Settings & Preferences</h1>
-        <p>Customize interface, left bar colors, synchronization behavior, and Linux integration.</p>
+        <p>Customize interface, navigation palette, synchronization behavior, and Linux integration.</p>
       </div>
     </div>
 
@@ -345,7 +416,6 @@
         <span>Control startup app, left bar palette, and sidebar responsiveness.</span>
       </div>
 
-      <!-- Left Bar Accent Color Theme -->
       <div class="setting-item">
         <div class="setting-info">
           <span class="setting-title">Left Bar Color Theme</span>
@@ -361,11 +431,10 @@
         </div>
       </div>
 
-      <!-- Default Startup App -->
       <div class="setting-item">
         <div class="setting-info">
           <span class="setting-title">Default Startup App</span>
-          <span class="setting-description">Select which Microsoft 365 application opens automatically on application launch.</span>
+          <span class="setting-description">Select which application opens automatically on application launch.</span>
         </div>
         <div class="setting-action">
           <select id="prefDefaultApp" class="fluent-select" onchange="saveConfig('default_app', this.value)">
@@ -393,7 +462,6 @@
         </div>
       </div>
 
-      <!-- Auto-Hide Sidebar -->
       <div class="setting-item">
         <div class="setting-info">
           <span class="setting-title">Auto-Hide Sidebar</span>
@@ -407,7 +475,6 @@
         </div>
       </div>
 
-      <!-- Compact Navigation Bar -->
       <div class="setting-item">
         <div class="setting-info">
           <span class="setting-title">Compact Navigation Bar</span>
@@ -429,11 +496,10 @@
         <span>Tune native daemon polling intervals, logs, and metered connections.</span>
       </div>
 
-      <!-- Ativar / Desativar Sincronização Nativa (abraunegg/onedrive) -->
       <div class="setting-item">
         <div class="setting-info">
           <span class="setting-title">Enable Native OneDrive Background Sync</span>
-          <span class="setting-description">Allow the native abraunegg/onedrive daemon to run in the background, integrating your local home folder with Microsoft Cloud so you can edit files natively.</span>
+          <span class="setting-description">Allow the native abraunegg/onedrive daemon to run in the background, integrating your local home folder with cloud storage so you can edit files natively.</span>
           <div class="warning-callout">
             ℹ️ <strong>Note:</strong> Enabling this integrates your local home directory (~/OneDrive) directly with cloud storage.
           </div>
@@ -446,11 +512,10 @@
         </div>
       </div>
 
-      <!-- Sync Interval -->
       <div class="setting-item">
         <div class="setting-info">
           <span class="setting-title">Sync Polling Interval</span>
-          <span class="setting-description">Frequency at which the daemon polls Microsoft Cloud for document changes.</span>
+          <span class="setting-description">Frequency at which the daemon polls cloud storage for document changes.</span>
         </div>
         <div class="setting-action">
           <select id="prefSyncInterval" class="fluent-select" onchange="saveConfig('sync_interval', this.value)">
@@ -464,7 +529,6 @@
         </div>
       </div>
 
-      <!-- Sync Over Metered Connections -->
       <div class="setting-item">
         <div class="setting-info">
           <span class="setting-title">Pause on Metered Connections</span>
@@ -478,7 +542,6 @@
         </div>
       </div>
 
-      <!-- Open Sync Log Viewer -->
       <div class="setting-item">
         <div class="setting-info">
           <span class="setting-title">OneDrive Sync Log Viewer</span>
@@ -503,7 +566,6 @@
         <span>Directory locations, hardware acceleration, and session cleanup.</span>
       </div>
 
-      <!-- Custom Local OneDrive Folder -->
       <div class="setting-item">
         <div class="setting-info">
           <span class="setting-title">Custom Local OneDrive Folder</span>
@@ -519,7 +581,6 @@
         </div>
       </div>
 
-      <!-- Hardware Acceleration (GPU) - Desativado por padrão -->
       <div class="setting-item">
         <div class="setting-info">
           <span class="setting-title">Hardware Acceleration (GPU)</span>
@@ -533,7 +594,6 @@
         </div>
       </div>
 
-      <!-- Clear Web Cache & Cookies -->
       <div class="setting-item">
         <div class="setting-info">
           <span class="setting-title">Clear Web Cache & Session Cookies</span>
@@ -547,18 +607,17 @@
       </div>
     </div>
 
-    <!-- 4. Native Linux Shortcuts & System Behavior -->
+    <!-- 4. Native Linux Integration & Global Hotkeys -->
     <div class="fluent-card">
       <div class="card-header">
         <h2>4. System Integration & Global Hotkeys</h2>
         <span>Startup behavior, desktop entry shortcuts, and hotkeys.</span>
       </div>
 
-      <!-- Desktop Shortcut por Switch -->
       <div class="setting-item">
         <div class="setting-info">
           <span class="setting-title">Desktop Shortcut</span>
-          <span class="setting-description">Automatically create or remove a launch icon on your Linux desktop (~/Desktop or Área de trabalho) compliant with Flathub policies.</span>
+          <span class="setting-description">Automatically create or remove a launch icon on your Linux desktop (~/Desktop or Área de trabalho).</span>
         </div>
         <div class="setting-action">
           <label class="switch">
@@ -568,11 +627,10 @@
         </div>
       </div>
 
-      <!-- Launch at Startup -->
       <div class="setting-item">
         <div class="setting-info">
           <span class="setting-title">Launch at System Startup</span>
-          <span class="setting-description">Start Microsoft 365 automatically upon Linux user session login.</span>
+          <span class="setting-description">Start Office 365 Suite automatically upon Linux user session login.</span>
         </div>
         <div class="setting-action">
           <label class="switch">
@@ -582,7 +640,6 @@
         </div>
       </div>
 
-      <!-- Close to Tray -->
       <div class="setting-item">
         <div class="setting-info">
           <span class="setting-title">Close to System Tray</span>
@@ -596,11 +653,10 @@
         </div>
       </div>
 
-      <!-- Global Hotkey com Switch Ativar / Desativar -->
       <div class="setting-item">
         <div class="setting-info">
           <span class="setting-title">Global Quick-Launch Hotkey</span>
-          <span class="setting-description">Bring Microsoft 365 to the foreground from anywhere in your desktop session. Requires X11 session or Desktop Portal GlobalShortcuts support.</span>
+          <span class="setting-description">Bring the suite to the foreground from anywhere in your desktop session.</span>
         </div>
         <div class="setting-action">
           <span class="kbd-badge">Ctrl + Alt + M</span>
@@ -619,11 +675,10 @@
         <span>Manage package removal and decide whether to preserve or purge user settings.</span>
       </div>
 
-      <!-- 1° Opção: Desinstalar mantendo configurações -->
       <div class="setting-item">
         <div class="setting-info">
           <span class="setting-title">Uninstall Application (Keep User Settings)</span>
-          <span class="setting-description">Removes the Microsoft 365 Flatpak application package from your system while preserving your local configurations, saved sessions, and OneDrive cache in ~/.var/app.</span>
+          <span class="setting-description">Removes the Flatpak application package from your system while preserving your local configurations, saved sessions, and OneDrive cache in ~/.var/app.</span>
         </div>
         <div class="setting-action">
           <button class="fluent-btn" onclick="executeUninstall(false)">
@@ -635,7 +690,6 @@
         </div>
       </div>
 
-      <!-- 2° Opção: Desinstalar apagando tudo (--delete-data) -->
       <div class="setting-item">
         <div class="setting-info">
           <span class="setting-title">Uninstall & Delete All User Data (Clean Purge)</span>
@@ -671,6 +725,18 @@
     </div>
   </div>
 
+  <!-- Modal Fluent Design In-Page -->
+  <div id="fluentModalOverlay" class="modal-overlay">
+    <div class="confirm-card">
+      <div class="confirm-title" id="fluentModalTitle">Title</div>
+      <div class="confirm-desc" id="fluentModalDesc">Description message goes here.</div>
+      <div class="confirm-actions" id="fluentModalActions">
+        <button class="confirm-btn-secondary" id="fluentModalBtnCancel" onclick="closeFluentModal()">Cancel</button>
+        <button class="confirm-btn-primary" id="fluentModalBtnConfirm">Confirm</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     document.addEventListener("DOMContentLoaded", () => {
       if (window.electronAPI?.getAllPreferences) {
@@ -687,18 +753,50 @@
 
             document.getElementById("prefSyncInterval").value = prefs.sync_interval || "manual";
             document.getElementById("prefMeteredPause").checked = prefs.pause_metered === true;
-            document.getElementById("prefNativeOnedriveSync").checked = prefs.native_onedrive_sync === true;
+            document.getElementById("prefNativeOnedriveSync").checked = prefs.native_onedrive_sync !== false;
 
             document.getElementById("prefHardwareAccel").checked = prefs.hardware_accel === true;
 
             document.getElementById("prefAutostart").checked = prefs.autostart === true;
-            document.getElementById("prefCloseToTray").checked = prefs.close_to_tray === true;
+            document.getElementById("prefCloseToTray").checked = prefs.close_to_tray !== false;
             document.getElementById("prefGlobalHotkey").checked = prefs.global_hotkey === true;
             document.getElementById("prefDesktopShortcut").checked = prefs.desktop_shortcut === true;
           }
         });
       }
     });
+
+    function showFluentModal({ title, message, confirmText = "Confirm", isDanger = false, onConfirm }) {
+      const overlay = document.getElementById("fluentModalOverlay");
+      const titleEl = document.getElementById("fluentModalTitle");
+      const descEl = document.getElementById("fluentModalDesc");
+      const cancelBtn = document.getElementById("fluentModalBtnCancel");
+      const confirmBtn = document.getElementById("fluentModalBtnConfirm");
+
+      titleEl.textContent = title;
+      descEl.textContent = message;
+
+      if (onConfirm) {
+        cancelBtn.style.display = "inline-block";
+        confirmBtn.textContent = confirmText;
+        confirmBtn.className = isDanger ? "confirm-btn-danger" : "confirm-btn-primary";
+        confirmBtn.onclick = () => {
+          closeFluentModal();
+          onConfirm();
+        };
+      } else {
+        cancelBtn.style.display = "none";
+        confirmBtn.textContent = "OK";
+        confirmBtn.className = "confirm-btn-primary";
+        confirmBtn.onclick = () => closeFluentModal();
+      }
+
+      overlay.classList.add("active");
+    }
+
+    function closeFluentModal() {
+      document.getElementById("fluentModalOverlay").classList.remove("active");
+    }
 
     function handleLeftbarThemeChange(theme) {
       const picker = document.getElementById("prefCustomColorPicker");
@@ -714,7 +812,7 @@
       saveConfig("desktop_shortcut", checked);
       showToast("Desktop Shortcut", checked ? "Shortcut created on Desktop" : "Shortcut removed from Desktop");
 
-      if (window.electronAPI && typeof window.electronAPI.setDesktopShortcut === "function") {
+      if (window.electronAPI?.setDesktopShortcut) {
         window.electronAPI.setDesktopShortcut(checked);
       }
     }
@@ -723,55 +821,73 @@
       saveConfig("native_onedrive_sync", checked);
       showToast("OneDrive Background Sync", checked ? "Native daemon synchronization enabled" : "Native daemon synchronization paused");
 
-      if (window.electronAPI && typeof window.electronAPI.setNativeOneDriveSync === "function") {
+      if (window.electronAPI?.setNativeOneDriveSync) {
         window.electronAPI.setNativeOneDriveSync(checked);
       }
     }
 
     function saveConfig(key, value) {
-      localStorage.setItem("pref_" + key, value);
       showToast(key.replace(/_/g, " "), "Preference saved successfully");
 
-      if (window.electronAPI && typeof window.electronAPI.setAppPreference === "function") {
+      if (window.electronAPI?.setAppPreference) {
         window.electronAPI.setAppPreference(key, value);
       }
     }
 
     function triggerCustomFolderPicker() {
-      if (confirm("Changing the default folder (~/OneDrive) will prevent the background daemon from reading local files until re-indexed. Do you wish to choose a new path?")) {
-        if (window.electronAPI && typeof window.electronAPI.selectFolderDialog === "function") {
-          window.electronAPI.selectFolderDialog().then(path => {
-            if (path) {
-              saveConfig("custom_sync_dir", path);
-              showToast("OneDrive Directory", "Custom path set: " + path);
+      showFluentModal({
+        title: "Change OneDrive Directory",
+        message: "Changing the default folder (~/OneDrive) will prevent the background daemon from reading local files until re-indexed. Do you wish to choose a new path?",
+        confirmText: "Choose Folder",
+        onConfirm: async () => {
+          if (window.electronAPI?.selectFolderDialog) {
+            const chosenPath = await window.electronAPI.selectFolderDialog();
+            if (chosenPath) {
+              saveConfig("custom_sync_dir", chosenPath);
+              showToast("OneDrive Directory", "Custom path set: " + chosenPath);
             }
-          });
+          }
         }
-      }
+      });
     }
 
     function triggerClearCache() {
-      if (confirm("This will clear cookies, saved web caches, and reset all preferences to default. Continue?")) {
-        localStorage.clear();
-
-        if (window.electronAPI && typeof window.electronAPI.factoryReset === "function") {
-          window.electronAPI.factoryReset();
-        } else {
-          location.reload();
+      showFluentModal({
+        title: "Clear Session & Reset Preferences",
+        message: "This will clear cookies, saved web caches, and reset all preferences to default. The application will restart automatically. Continue?",
+        confirmText: "Clear & Restart",
+        isDanger: true,
+        onConfirm: () => {
+          if (window.electronAPI?.factoryReset) {
+            window.electronAPI.factoryReset();
+          } else {
+            location.reload();
+          }
         }
-      }
+      });
     }
 
     function executeUninstall(deleteData) {
-      if (window.electronAPI && typeof window.electronAPI.uninstallApp === "function") {
-        window.electronAPI.uninstallApp(deleteData).then(res => {
-          if (res && res.error) {
-            alert("Error triggering uninstallation: " + res.error);
+      showFluentModal({
+        title: deleteData ? "Confirm Full Clean Purge" : "Confirm Uninstallation",
+        message: deleteData
+          ? "Are you sure you want to completely uninstall Office 365 Suite and wipe all sandbox data, credentials, and shortcuts?"
+          : "Are you sure you want to uninstall Office 365 Suite? Your saved session and configurations will be preserved.",
+        confirmText: deleteData ? "Uninstall & Wipe All" : "Uninstall",
+        isDanger: deleteData,
+        onConfirm: () => {
+          if (window.electronAPI?.uninstallApp) {
+            window.electronAPI.uninstallApp(deleteData).then(res => {
+              if (res && res.error) {
+                showFluentModal({
+                  title: "Uninstallation Error",
+                  message: res.error
+                });
+              }
+            });
           }
-        });
-      } else {
-        alert("Native uninstallation is available only inside the Flatpak environment.");
-      }
+        }
+      });
     }
 
     function openLogModal() {
@@ -779,12 +895,12 @@
       const logBody = document.getElementById("modalLogContent");
       modal.classList.add("active");
 
-      if (window.electronAPI && typeof window.electronAPI.getOneDriveLogs === "function") {
+      if (window.electronAPI?.getOneDriveLogs) {
         window.electronAPI.getOneDriveLogs().then(logs => {
-          logBody.textContent = logs || "[Daemon] Running abraunegg/onedrive in monitor mode...\n[Sync] 0 pending uploads, 0 pending downloads.";
+          logBody.textContent = logs || "[Daemon] Running abraunegg/onedrive in monitor mode...\n[Sync Status] Synchronized with Cloud Storage.";
         });
       } else {
-        logBody.textContent = "[Daemon Monitor] Systemd/User service active.\n[Local SQLite] Database checked: ~/.config/onedrive/items.sqlite3\n[Sync Engine] Initialized without errors.\n[Mode] Flatpak Default: On-demand sync enabled on save.";
+        logBody.textContent = "[Daemon Monitor] Service active.\n[Sync Engine] Initialized without errors.\n[Mode] Flatpak Default: On-demand sync enabled on save.";
       }
     }
 
@@ -793,7 +909,7 @@
     }
 
     function showToast(title, message) {
-      if (window.electronAPI && typeof window.electronAPI.showFluentToast === "function") {
+      if (window.electronAPI?.showFluentToast) {
         window.electronAPI.showFluentToast({
           title: "Settings & Preferences",
           message: `${title}: ${message || "Updated"}`,

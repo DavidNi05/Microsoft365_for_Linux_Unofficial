@@ -3,11 +3,11 @@
   <id>io.github.DavidNi05.Microsoft365_for_Linux_Unofficial</id>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>MIT</project_license>
-  <name>Microsoft 365 for Linux (Unofficial)</name>
-  <summary>Microsoft 365 web apps desktop client with OneDrive synchronization</summary>
+  <name>Office 365 Suite (Community Client)</name>
+  <summary>Office web apps desktop client with native OneDrive synchronization</summary>
   <description>
     <p>
-      An unofficial desktop integration for Microsoft 365 services on Linux featuring native background sync powered by the abraunegg/onedrive daemon, tray icons, and desktop notifications.
+      An open-source community desktop client for cloud Office web applications featuring native background file synchronization powered by the abraunegg/onedrive daemon, tray controls, and desktop notifications.
     </p>
   </description>
   <launchable type="desktop-id">io.github.DavidNi05.Microsoft365_for_Linux_Unofficial.desktop</launchable>
@@ -16,7 +16,7 @@
   </provides>
   <screenshots>
     <screenshot type="default">
-      <caption>Microsoft 365 dashboard with integrated web apps and OneDrive status</caption>
+      <caption>Office 365 Suite dashboard with integrated web apps and OneDrive sync status</caption>
       <image>https://raw.githubusercontent.com/DavidNi05/Microsoft365-for-Linux-Unofficial/main/assets/screenshot.png</image>
     </screenshot>
   </screenshots>
@@ -27,6 +27,11 @@
   </developer>
   <content_rating type="oars-1.1" />
   <releases>
+    <release version="1.2.0" date="2026-09-08">
+      <description>
+        <p>Rebranded to Office 365 Suite (Community Client), upgraded to GNOME Platform 50 runtime, added Graph API support, and unified single sign-on.</p>
+      </description>
+    </release>
     <release version="1.1.0" date="2026-09-05">
       <description>
         <p>Major update featuring native OneDrive sync toggle, dynamic sidebar controls, localized desktop integration, and UI refinements.</p>
