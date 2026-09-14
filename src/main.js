@@ -14,7 +14,7 @@ const {
 
 const path = require("path"); 
 const fs = require("fs"); 
-const { spawn, exec } = require("child_process");
+const { spawn, exec } = require("child_process"); 
 const { findOfficeFiles } = require("./file-router"); 
 const { getFileWebUrl } = require("./office-online"); 
 const oneDrive = require("./onedrive-manager"); 
@@ -32,10 +32,11 @@ const {
   showFluentNotification, 
   setSoundEnabled, 
   getSoundEnabled 
-} = require("./fluent-notifier");
+} = require("./fluent-notifier"); 
 
-const CHROME_DESKTOP_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36";
-app.userAgentFallback = CHROME_DESKTOP_UA;
+// Emula User-Agent desktop moderno para compatibilidade total com os serviços Microsoft
+const CHROME_DESKTOP_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"; 
+app.userAgentFallback = CHROME_DESKTOP_UA; 
 
 const backgroundMode = process.argv.includes("--background"); 
 const quitUiMode = process.argv.includes("--quit-ui"); 
@@ -49,39 +50,40 @@ let activeExternalOneDrivePath = null;
 let activeExternalImported = false; 
 let manualSaveInProgress = false; 
 let isOpeningOfficeFile = false; 
-let isAuthenticating = false;
+let isAuthenticating = false; 
 let pendingOfficeFiles = findOfficeFiles(process.argv); 
-let closeToTrayEnabled = true;
+let closeToTrayEnabled = true; 
 
 let currentSidebarWidth = 230; 
 const TOPBAR_HEIGHT = 55; 
 
-const MS_AUTH_URL = "https://login.microsoftonline.com/common/oauth2/v2.0/authorize?" +
-  "client_id=" + oneDrive.CLIENT_ID +
-  "&response_type=code" +
-  "&redirect_uri=https%3A%2F%2Flogin.microsoftonline.com%2Fcommon%2Foauth2%2Fnativeclient" +
-  "&response_mode=query" +
-  "&prompt=select_account" +
-  "&scope=Files.ReadWrite%20Files.ReadWrite.All%20Sites.ReadWrite.All%20User.Read%20offline_access";
+// URL oficial de autorização OAuth 2.0 com escopos para Graph API e OneDrive
+const MS_AUTH_URL = "https://login.microsoftonline.com/common/oauth2/v2.0/authorize?" + 
+  "client_id=" + oneDrive.CLIENT_ID + 
+  "&response_type=code" + 
+  "&redirect_uri=https%3A%2F%2Flogin.microsoftonline.com%2Fcommon%2Foauth2%2Fnativeclient" + 
+  "&response_mode=query" + 
+  "&prompt=select_account" + 
+  "&scope=Files.ReadWrite%20Files.ReadWrite.All%20Sites.ReadWrite.All%20User.Read%20offline_access"; 
 
-// URLs canônicas compatíveis tanto com contas pessoais (Live/Hotmail) quanto corporativas
+// Rotas canônicas de alta velocidade otimizadas para contas pessoais (MSA - Live/Outlook)
 const services = { 
-  home: "https://office.live.com/start/Word.aspx", 
-  word: "https://office.live.com/start/Word.aspx", 
-  excel: "https://office.live.com/start/Excel.aspx", 
-  powerpoint: "https://office.live.com/start/PowerPoint.aspx", 
-  onenote: "https://www.onenote.com/notebooks", 
+  home: "https://www.office.com/launch/word?auth=2", 
+  word: "https://www.office.com/launch/word?auth=2", 
+  excel: "https://office.live.com/start/Excel.aspx?auth=2", 
+  powerpoint: "https://office.live.com/start/PowerPoint.aspx?auth=2", 
+  onenote: "https://www.onenote.com/notebooks?auth=2", 
   copilot: "https://copilot.microsoft.com/", 
   onedrive: "https://onedrive.live.com/", 
   outlook: "https://outlook.live.com/mail/", 
   teams: "https://teams.live.com/v2/", 
-  todo: "https://to-do.office.com/tasks/", 
+  todo: "https://to-do.live.com/tasks/?auth=2", 
   designer: "https://designer.microsoft.com/", 
   clipchamp: "https://app.clipchamp.com/", 
   help: "https://support.microsoft.com/" 
 }; 
 
-const ALLOWED_DOMAINS = [
+const ALLOWED_DOMAINS = [ 
   "microsoft.com", 
   "cloud.microsoft", 
   "office.com", 
@@ -94,13 +96,14 @@ const ALLOWED_DOMAINS = [
   "clipchamp.com", 
   "msauth.net", 
   "msftauth.net", 
-  "skype.com",
-  "microsoft365.com"
-];
+  "skype.com", 
+  "microsoft365.com",
+  "onenote.com"
+]; 
 
-function isAllowedUrl(rawUrl) {
-  if (!rawUrl || typeof rawUrl !== "string") return false;
-  if (rawUrl.startsWith("file://") || rawUrl.startsWith("m365://")) return true;
+function isAllowedUrl(rawUrl) { 
+  if (!rawUrl || typeof rawUrl !== "string") return false; 
+  if (rawUrl.startsWith("file://") || rawUrl.startsWith("m365://")) return true; 
 
   try { 
     const parsed = new URL(rawUrl); 
@@ -109,8 +112,8 @@ function isAllowedUrl(rawUrl) {
     return ALLOWED_DOMAINS.some(domain => hostname === domain || hostname.endsWith("." + domain)); 
   } catch (_) { 
     return false; 
-  }
-}
+  } 
+} 
 
 function sleep(ms) { 
   return new Promise(resolve => setTimeout(resolve, ms)); 
@@ -138,14 +141,14 @@ function showMainWindow() {
 
 function getPreferencesFilePath() { 
   return path.join(app.getPath("userData"), "app_preferences.json"); 
-}
+} 
 
 function readAllPreferences() { 
   try { 
     const filePath = getPreferencesFilePath(); 
-    if (fs.existsSync(filePath)) {
+    if (fs.existsSync(filePath)) { 
       return JSON.parse(fs.readFileSync(filePath, "utf8")); 
-    }
+    } 
   } catch (_) {} 
 
   return { 
@@ -163,7 +166,7 @@ function readAllPreferences() {
     global_hotkey: false, 
     desktop_shortcut: false 
   }; 
-}
+} 
 
 function writePreference(key, value) { 
   try { 
@@ -171,24 +174,24 @@ function writePreference(key, value) {
     prefs[key] = value; 
     fs.writeFileSync(getPreferencesFilePath(), JSON.stringify(prefs, null, 2), "utf8"); 
   } catch (_) {} 
-}
+} 
 
-oneDrive.setOpenUiHandler(() => {
-  showMainWindow();
-});
+oneDrive.setOpenUiHandler(() => { 
+  showMainWindow(); 
+}); 
 
-oneDrive.setSoundHandlers(
+oneDrive.setSoundHandlers( 
   () => getSoundEnabled(), 
   (enabled) => { 
     setSoundEnabled(enabled); 
     sendToInterface("sound-setting-changed", enabled); 
     oneDrive.rebuildTrayMenu(); 
-  }
-);
+  } 
+); 
 
 async function ensureBackgroundRunning() { 
   if (backgroundMode) return true; 
-  const prefs = readAllPreferences();
+  const prefs = readAllPreferences(); 
   if (prefs.native_onedrive_sync === false) return false; 
   if (!oneDrive.isAuthenticated()) { 
     sendOneDriveStatus("Not Connected"); 
@@ -199,8 +202,8 @@ async function ensureBackgroundRunning() {
   try { 
     oneDrive.ensureDirectories(); 
     oneDrive.startHeartbeat(); 
-    oneDrive.startMonitor(() => {
-      sendOneDriveStatus("Sync");
+    oneDrive.startMonitor(() => { 
+      sendOneDriveStatus("Sync"); 
     }); 
     return true; 
   } catch (_) { 
@@ -208,76 +211,85 @@ async function ensureBackgroundRunning() {
   } 
 } 
 
-async function updateProfileAvatar() {
-  try {
-    const avatarData = await oneDrive.fetchGraphUserProfilePicture();
-    if (avatarData) {
-      sendToInterface("update-user-avatar", avatarData);
-    }
-  } catch (_) {}
-}
+async function updateProfileAvatar() { 
+  try { 
+    const avatarData = await oneDrive.fetchGraphUserProfilePicture(); 
+    if (avatarData) { 
+      sendToInterface("update-user-avatar", avatarData); 
+    } 
+  } catch (_) {} 
+} 
 
-function isOAuthCodeRedirect(targetUrl) {
-  if (!targetUrl || typeof targetUrl !== "string") return false;
-  if (targetUrl.includes("/oauth2/v2.0/authorize")) return false;
+function isOAuthCodeRedirect(targetUrl) { 
+  if (!targetUrl || typeof targetUrl !== "string") return false; 
+  if (targetUrl.includes("/oauth2/v2.0/authorize")) return false; 
 
-  const isNativeClient = targetUrl.startsWith("https://login.microsoftonline.com/common/oauth2/nativeclient") ||
-                         targetUrl.includes("/oauth2/nativeclient");
-  const isLiveDesktop = targetUrl.includes("login.live.com/oauth20_desktop.srf");
-  const hasAuthCode = targetUrl.includes("code=") || targetUrl.includes("?code=") || targetUrl.includes("&code=");
+  const isNativeClient = targetUrl.startsWith("https://login.microsoftonline.com/common/oauth2/nativeclient") || 
+                         targetUrl.includes("/oauth2/nativeclient"); 
+  const isLiveDesktop = targetUrl.includes("login.live.com/oauth20_desktop.srf"); 
+  const hasAuthCode = targetUrl.includes("code=") || targetUrl.includes("?code=") || targetUrl.includes("&code="); 
 
-  return (isNativeClient || isLiveDesktop) && hasAuthCode;
-}
+  return (isNativeClient || isLiveDesktop) && hasAuthCode; 
+} 
 
-async function handleAuthRedirect(targetUrl) {
-  if (isAuthenticating) return;
-  if (!isOAuthCodeRedirect(targetUrl)) return;
+async function handleAuthRedirect(targetUrl) { 
+  if (isAuthenticating) return; 
+  if (!isOAuthCodeRedirect(targetUrl)) return; 
 
-  isAuthenticating = true;
-  sendOneDriveStatus("Authenticating...");
+  isAuthenticating = true; 
+  sendOneDriveStatus("Authenticating..."); 
 
-  try {
-    const mainSession = session.fromPartition("persist:office365");
-    await mainSession.cookies.flushStore();
-  } catch (_) {}
+  try { 
+    const mainSession = session.fromPartition("persist:office365"); 
+    await mainSession.cookies.flushStore(); 
+  } catch (_) {} 
 
-  const result = await oneDrive.authenticateWithResponseUrl(targetUrl);
+  const result = await oneDrive.authenticateWithResponseUrl(targetUrl); 
 
-  if (result && result.ok) {
-    await ensureBackgroundRunning();
-    sendOneDriveStatus("Sync");
-    await updateProfileAvatar();
+  if (result && result.ok) { 
+    await ensureBackgroundRunning(); 
+    sendOneDriveStatus("Sync"); 
+    await updateProfileAvatar(); 
 
-    sendToInterface("auth-state-changed", { authenticated: true });
-    scheduleUpdateViewBounds();
+    // Destrava imediatamente a tela para o modo dashboard
+    isAuthenticating = false; 
+    sendToInterface("auth-state-changed", { authenticated: true }); 
 
-    const prefs = readAllPreferences();
-    const startApp = prefs.default_app === "last_used" ? "word" : (prefs.default_app || "word");
-    openMicrosoftService(startApp);
+    const prefs = readAllPreferences(); 
+    currentSidebarWidth = prefs.compact_nav ? 54 : 230; 
+    scheduleUpdateViewBounds(); 
+
+    // Pré-aquece cookies da sessão persistente
+    try {
+      const mainSession = session.fromPartition("persist:office365");
+      await mainSession.cookies.flushStore();
+    } catch (_) {}
+
+    const startApp = prefs.default_app === "last_used" ? "word" : (prefs.default_app || "word"); 
+    openMicrosoftService(startApp); 
 
     showFluentNotification({ 
       title: "Office 365 Suite", 
       message: "Account authenticated successfully! Single Sign-On and OneDrive sync are active.", 
       icon: "Home.png", 
       duration: 4000 
-    });
-  } else {
-    sendOneDriveStatus("Not Connected");
-    dialog.showErrorBox("Authentication Failed", "Could not complete native OneDrive synchronization login.");
-    openMicrosoftService("word");
-  }
+    }); 
+  } else { 
+    isAuthenticating = false; 
+    sendOneDriveStatus("Not Connected"); 
+    dialog.showErrorBox("Authentication Failed", "Could not complete native OneDrive synchronization login."); 
+    openMicrosoftService("word"); 
+  } 
+} 
 
-  setTimeout(() => { isAuthenticating = false; }, 3000);
-}
+function startUnifiedLoginWindow() { 
+  sendToInterface("auth-state-changed", { authenticated: false }); 
+  updateViewBounds(); 
 
-function startUnifiedLoginWindow() {
-  sendToInterface("auth-state-changed", { authenticated: false });
-  updateViewBounds();
-
-  if (officeView && !officeView.webContents.isDestroyed()) {
-    officeView.webContents.loadURL(MS_AUTH_URL);
-  }
-}
+  if (officeView && !officeView.webContents.isDestroyed()) { 
+    officeView.webContents.loadURL(MS_AUTH_URL); 
+  } 
+} 
 
 function updateViewBounds() { 
   if (!mainWindow || mainWindow.isDestroyed() || !officeView || officeView.webContents.isDestroyed()) return; 
@@ -286,15 +298,16 @@ function updateViewBounds() {
   const contentWidth = Math.max(1, Math.floor(Number(contentBounds.width) || 0)); 
   const contentHeight = Math.max(1, Math.floor(Number(contentBounds.height) || 0)); 
 
-  if (!oneDrive.isAuthenticated() || isAuthenticating) {
+  // Durante o login inicial, ocupa a janela inteira
+  if (!oneDrive.isAuthenticated() || isAuthenticating) { 
     officeView.setBounds({ 
       x: 0, 
       y: 0, 
       width: contentWidth, 
       height: contentHeight 
-    });
-    return;
-  }
+    }); 
+    return; 
+  } 
 
   const leftInset = Math.max(0, Math.floor(currentSidebarWidth)); 
   const topInset = Math.max(0, Math.floor(TOPBAR_HEIGHT)); 
@@ -313,33 +326,34 @@ function scheduleUpdateViewBounds() {
   setTimeout(updateViewBounds, 50); 
   setTimeout(updateViewBounds, 150); 
   setTimeout(updateViewBounds, 300); 
-}
+  setTimeout(updateViewBounds, 600); 
+} 
 
 function openMicrosoftService(service) { 
   if (!officeView || officeView.webContents.isDestroyed()) return; 
-  const key = (service || "").toLowerCase();
+  const key = (service || "").toLowerCase(); 
 
   if (key === "credits") { 
     const creditsPath = fs.existsSync(path.join(__dirname, "Credits.html")) 
       ? path.join(__dirname, "Credits.html") 
-      : path.join(__dirname, "credits.html");
+      : path.join(__dirname, "credits.html"); 
     officeView.webContents.loadFile(creditsPath); 
     sendToInterface("browser-url", "m365://credits"); 
     return; 
-  }
+  } 
 
   if (key === "settings") { 
     const settingsPath = fs.existsSync(path.join(__dirname, "settings.html")) 
       ? path.join(__dirname, "settings.html") 
-      : path.join(__dirname, "Settings.html");
+      : path.join(__dirname, "Settings.html"); 
     officeView.webContents.loadFile(settingsPath); 
     sendToInterface("browser-url", "m365://settings"); 
     return; 
-  }
+  } 
 
-  if (services[key]) {
+  if (services[key]) { 
     officeView.webContents.loadURL(services[key]); 
-  }
+  } 
 } 
 
 function updateActiveExternalFile(result, explicitOriginal = null) { 
@@ -354,11 +368,11 @@ function updateActiveExternalFile(result, explicitOriginal = null) {
     activeExternalOneDrivePath = workingPath; 
     activeExternalImported = result ? result.imported !== false : true; 
 
-    if (workingPath && activeExternalImported && typeof registerExternalFile === "function") {
+    if (workingPath && activeExternalImported && typeof registerExternalFile === "function") { 
       try { 
         registerExternalFile(originalPath, workingPath, activeExternalImported); 
       } catch (_) {} 
-    }
+    } 
   } 
 } 
 
@@ -366,7 +380,7 @@ async function handleOfficeFile(officeFile) {
   if (!officeFile || !officeFile.service || isOpeningOfficeFile) return; 
 
   isOpeningOfficeFile = true; 
-  const targetPath = officeFile.originalPath || officeFile.path;
+  const targetPath = officeFile.originalPath || officeFile.path; 
   activeExternalOriginalPath = targetPath ? path.resolve(targetPath) : null; 
   activeExternalOneDrivePath = officeFile.path ? path.resolve(officeFile.path) : null; 
   activeExternalImported = true; 
@@ -377,10 +391,10 @@ async function handleOfficeFile(officeFile) {
     fileName: officeFile.name, 
     service: officeFile.service, 
     status: "Importing document..." 
-  });
+  }); 
 
   try { 
-    const fileToProcess = activeExternalOriginalPath || officeFile.path;
+    const fileToProcess = activeExternalOriginalPath || officeFile.path; 
     let result = await getFileWebUrl(fileToProcess); 
     updateActiveExternalFile(result, activeExternalOriginalPath); 
 
@@ -447,12 +461,12 @@ async function openPendingOfficeFile() {
     openMicrosoftService("word"); 
     return; 
   } 
-  const officeFile = pendingOfficeFiles.shift();
+  const officeFile = pendingOfficeFiles.shift(); 
   await handleOfficeFile(officeFile); 
 } 
 
-async function getOfficeOnlineDocumentTitle() {
-  if (!officeView || officeView.webContents.isDestroyed()) return null;
+async function getOfficeOnlineDocumentTitle() { 
+  if (!officeView || officeView.webContents.isDestroyed()) return null; 
   try { 
     return await officeView.webContents.executeJavaScript(`
       (function() {
@@ -476,20 +490,20 @@ async function getOfficeOnlineDocumentTitle() {
     `); 
   } catch (_) { 
     return officeView.webContents.getTitle(); 
-  }
-}
+  } 
+} 
 
-function handleWebTitleChange(title) {
-  if (!activeExternalOriginalPath) return;
-  const currentExt = path.extname(activeExternalOriginalPath);
-  const clean = cleanDocTitle(title, currentExt);
-  if (!clean) return;
+function handleWebTitleChange(title) { 
+  if (!activeExternalOriginalPath) return; 
+  const currentExt = path.extname(activeExternalOriginalPath); 
+  const clean = cleanDocTitle(title, currentExt); 
+  if (!clean) return; 
 
-  const currentName = path.basename(activeExternalOriginalPath);
-  if (clean.toLowerCase() !== currentName.toLowerCase()) {
-    sendToInterface("office-file-renamed", { fileName: clean });
-  }
-}
+  const currentName = path.basename(activeExternalOriginalPath); 
+  if (clean.toLowerCase() !== currentName.toLowerCase()) { 
+    sendToInterface("office-file-renamed", { fileName: clean }); 
+  } 
+} 
 
 function setupGlobalShortcut(enable) { 
   const shortcutKey = "Ctrl+Alt+M"; 
@@ -498,11 +512,11 @@ function setupGlobalShortcut(enable) {
     return; 
   } 
   try { 
-    globalShortcut.register(shortcutKey, () => {
-      showMainWindow();
+    globalShortcut.register(shortcutKey, () => { 
+      showMainWindow(); 
     }); 
   } catch(_) {} 
-}
+} 
 
 function createOfficeView() { 
   officeView = new WebContentsView({ 
@@ -518,26 +532,38 @@ function createOfficeView() {
   mainWindow.contentView.addChildView(officeView); 
   scheduleUpdateViewBounds(); 
 
-  officeView.webContents.setUserAgent(CHROME_DESKTOP_UA);
+  officeView.webContents.setUserAgent(CHROME_DESKTOP_UA); 
   officeView.webContents.on("page-title-updated", (_e, title) => handleWebTitleChange(title)); 
 
-  officeView.webContents.on("did-finish-load", () => {
+  officeView.webContents.on("did-finish-load", () => { 
     officeView.webContents.executeJavaScript(`
       (function() {
-        if (window.__m365Watcher) return;
-        window.__m365Watcher = true;
-        function pollTitle() {
-          const input = document.querySelector('input[data-automationid="FileNameInput"]') ||
-                        document.querySelector('#Breadcrumb-ItemName') ||
-                        document.querySelector('#fileNameTextBox');
-          if (input && input.value && input.value.trim() && input.value.trim() !== document.title) {
-            document.title = input.value.trim();
+        // Monitoramento de título de documento
+        if (!window.__m365Watcher) {
+          window.__m365Watcher = true;
+          function pollTitle() {
+            const input = document.querySelector('input[data-automationid="FileNameInput"]') ||
+                          document.querySelector('#Breadcrumb-ItemName') ||
+                          document.querySelector('#fileNameTextBox');
+            if (input && input.value && input.value.trim() && input.value.trim() !== document.title) {
+              document.title = input.value.trim();
+            }
+          }
+          setInterval(pollTitle, 800);
+        }
+
+        // Auto-Sign-In Watcher: se cair em landing page com botão "Entrar", clica automaticamente
+        function autoSignIn() {
+          const btn = document.querySelector('a[href*="login.live.com"], a[href*="login.microsoftonline.com"], a[data-bi-id*="sign-in"], #hero-banner-sign-in-to-office-365-link');
+          if (btn && btn.offsetParent !== null) {
+            btn.click();
           }
         }
-        setInterval(pollTitle, 800);
+        setTimeout(autoSignIn, 80);
+        setTimeout(autoSignIn, 350);
       })()
-    `).catch(() => {});
-  });
+    `).catch(() => {}); 
+  }); 
 
   officeView.webContents.setWindowOpenHandler(({ url }) => { 
     if (isAllowedUrl(url)) { 
@@ -549,37 +575,37 @@ function createOfficeView() {
   }); 
 
   officeView.webContents.on("will-navigate", (event, url) => { 
-    if (isOAuthCodeRedirect(url)) {
-      event.preventDefault();
-      handleAuthRedirect(url);
-      return;
-    }
+    if (isOAuthCodeRedirect(url)) { 
+      event.preventDefault(); 
+      handleAuthRedirect(url); 
+      return; 
+    } 
     if (!isAllowedUrl(url)) { 
       event.preventDefault(); 
       shell.openExternal(url); 
     } 
   }); 
 
-  officeView.webContents.on("will-redirect", (event, url) => {
-    if (isOAuthCodeRedirect(url)) {
-      event.preventDefault();
-      handleAuthRedirect(url);
-    }
-  });
+  officeView.webContents.on("will-redirect", (event, url) => { 
+    if (isOAuthCodeRedirect(url)) { 
+      event.preventDefault(); 
+      handleAuthRedirect(url); 
+    } 
+  }); 
 
   officeView.webContents.on("did-start-loading", () => sendToInterface("browser-loading", true)); 
   officeView.webContents.on("did-stop-loading", () => { 
     sendToInterface("browser-loading", false); 
-    if (!officeView.webContents.isDestroyed()) {
+    if (!officeView.webContents.isDestroyed()) { 
       sendToInterface("browser-url", officeView.webContents.getURL()); 
-    }
+    } 
   }); 
 
-  if (oneDrive.isAuthenticated()) {
-    openPendingOfficeFile().catch(() => openMicrosoftService("word"));
-  } else {
-    startUnifiedLoginWindow();
-  }
+  if (oneDrive.isAuthenticated()) { 
+    openPendingOfficeFile().catch(() => openMicrosoftService("word")); 
+  } else { 
+    startUnifiedLoginWindow(); 
+  } 
 } 
 
 function createWindow() { 
@@ -610,29 +636,29 @@ function createWindow() {
   mainWindow.loadFile(path.join(__dirname, "index.html")); 
 
   mainWindow.webContents.once("did-finish-load", () => { 
-    const mainSession = session.fromPartition("persist:office365");
-    mainSession.setUserAgent(CHROME_DESKTOP_UA);
+    const mainSession = session.fromPartition("persist:office365"); 
+    mainSession.setUserAgent(CHROME_DESKTOP_UA); 
 
-    mainSession.webRequest.onBeforeSendHeaders((details, callback) => {
-      details.requestHeaders["User-Agent"] = CHROME_DESKTOP_UA;
-      details.requestHeaders["sec-ch-ua"] = '"Chromium";v="128", "Not;A=Brand";v="24", "Google Chrome";v="128"';
-      details.requestHeaders["sec-ch-ua-mobile"] = "?0";
-      details.requestHeaders["sec-ch-ua-platform"] = '"Windows"';
-      delete details.requestHeaders["X-Requested-With"];
-      callback({ requestHeaders: details.requestHeaders });
-    });
+    mainSession.webRequest.onBeforeSendHeaders((details, callback) => { 
+      details.requestHeaders["User-Agent"] = CHROME_DESKTOP_UA; 
+      details.requestHeaders["sec-ch-ua"] = '"Chromium";v="128", "Not;A=Brand";v="24", "Google Chrome";v="128"'; 
+      details.requestHeaders["sec-ch-ua-mobile"] = "?0"; 
+      details.requestHeaders["sec-ch-ua-platform"] = '"Windows"'; 
+      delete details.requestHeaders["X-Requested-With"]; 
+      callback({ requestHeaders: details.requestHeaders }); 
+    }); 
 
-    mainSession.webRequest.onBeforeRequest(
-      { urls: ["https://login.microsoftonline.com/common/oauth2/nativeclient*", "*://login.live.com/oauth20_desktop.srf*"] },
-      (details, callback) => {
-        if (isOAuthCodeRedirect(details.url)) {
-          handleAuthRedirect(details.url);
-          callback({ cancel: true });
-          return;
-        }
-        callback({});
-      }
-    );
+    mainSession.webRequest.onBeforeRequest( 
+      { urls: ["https://login.microsoftonline.com/common/oauth2/nativeclient*", "*://login.live.com/oauth20_desktop.srf*"] }, 
+      (details, callback) => { 
+        if (isOAuthCodeRedirect(details.url)) { 
+          handleAuthRedirect(details.url); 
+          callback({ cancel: true }); 
+          return; 
+        } 
+        callback({}); 
+      } 
+    ); 
 
     createOfficeView(); 
     const prefs = readAllPreferences(); 
@@ -642,18 +668,18 @@ function createWindow() {
       ensureBackgroundRunning(); 
       sendOneDriveStatus("Sync"); 
       updateProfileAvatar(); 
-      sendToInterface("auth-state-changed", { authenticated: true });
+      sendToInterface("auth-state-changed", { authenticated: true }); 
     } else { 
       sendOneDriveStatus("Not Connected"); 
-      sendToInterface("auth-state-changed", { authenticated: false });
+      sendToInterface("auth-state-changed", { authenticated: false }); 
     } 
   }); 
 
-  [
+  [ 
     "resize", "resized", "maximize", "unmaximize", 
-    "restore", "enter-full-screen", "leave-full-screen", "show"
-  ].forEach(eventName => {
-    mainWindow.on(eventName, scheduleUpdateViewBounds);
+    "restore", "enter-full-screen", "leave-full-screen", "show" 
+  ].forEach(eventName => { 
+    mainWindow.on(eventName, scheduleUpdateViewBounds); 
   }); 
 
   mainWindow.on("close", event => { 
@@ -726,23 +752,23 @@ ipcMain.handle("start-unified-login", () => {
   return true; 
 }); 
 
-ipcMain.handle("check-auth-status", () => {
-  return { authenticated: oneDrive.isAuthenticated() };
+ipcMain.handle("check-auth-status", () => { 
+  return { authenticated: oneDrive.isAuthenticated() }; 
 }); 
 
-ipcMain.handle("get-user-avatar", async () => {
-  return await oneDrive.fetchGraphUserProfilePicture();
+ipcMain.handle("get-user-avatar", async () => { 
+  return await oneDrive.fetchGraphUserProfilePicture(); 
 }); 
 
 ipcMain.on("window-resize-notify", (_event, newSidebarWidth) => { 
-  if (typeof newSidebarWidth === "number") {
+  if (typeof newSidebarWidth === "number") { 
     currentSidebarWidth = newSidebarWidth; 
-  }
+  } 
   updateViewBounds(); 
 }); 
 
-ipcMain.handle("get-all-preferences", () => {
-  return readAllPreferences();
+ipcMain.handle("get-all-preferences", () => { 
+  return readAllPreferences(); 
 }); 
 
 ipcMain.handle("show-fluent-toast", (_event, options) => { 
@@ -755,8 +781,8 @@ ipcMain.handle("show-fluent-toast", (_event, options) => {
   }); 
 }); 
 
-ipcMain.handle("get-sound-enabled", () => {
-  return getSoundEnabled();
+ipcMain.handle("get-sound-enabled", () => { 
+  return getSoundEnabled(); 
 }); 
 
 ipcMain.handle("set-sound-enabled", (_event, enabled) => { 
@@ -777,41 +803,41 @@ ipcMain.handle("office-save-local-now", async () => {
     sendOneDriveStatus("Sync"); 
     const result = await saveLocalNow(target, expectedTitle); 
 
-    if (!result || !result.ok) {
-      const failedName = result?.fileName || path.basename(target);
-      sendOneDriveStatus("Sync");
-      showFluentNotification({
-        title: "Office 365 Suite",
-        message: `Failed to save ${failedName}`,
-        icon: "OneDrive.png",
-        duration: 4000
-      });
-      return (result || { ok: false, fileName: failedName, error: "Save error." });
-    }
+    if (!result || !result.ok) { 
+      const failedName = result?.fileName || path.basename(target); 
+      sendOneDriveStatus("Sync"); 
+      showFluentNotification({ 
+        title: "Office 365 Suite", 
+        message: `Failed to save ${failedName}`, 
+        icon: "OneDrive.png", 
+        duration: 4000 
+      }); 
+      return (result || { ok: false, fileName: failedName, error: "Save error." }); 
+    } 
 
-    if (result.originalPath) {
-      activeExternalOriginalPath = path.resolve(result.originalPath);
-      if (result.oneDrivePath) {
-        activeExternalOneDrivePath = path.resolve(result.oneDrivePath);
-      }
-      sendToInterface("office-file-renamed", {
-        oldPath: target,
-        newPath: activeExternalOriginalPath,
-        fileName: result.fileName
-      });
-    }
+    if (result.originalPath) { 
+      activeExternalOriginalPath = path.resolve(result.originalPath); 
+      if (result.oneDrivePath) { 
+        activeExternalOneDrivePath = path.resolve(result.oneDrivePath); 
+      } 
+      sendToInterface("office-file-renamed", { 
+        oldPath: target, 
+        newPath: activeExternalOriginalPath, 
+        fileName: result.fileName 
+      }); 
+    } 
 
-    showFluentNotification({
-      title: "Office 365 Suite",
-      message: result.message || `File saved successfully: ${result.fileName}`,
-      icon: "OneDrive.png",
-      duration: 3500
-    });
+    showFluentNotification({ 
+      title: "Office 365 Suite", 
+      message: result.message || `File saved successfully: ${result.fileName}`, 
+      icon: "OneDrive.png", 
+      duration: 3500 
+    }); 
 
-    sendOneDriveStatus("Sync");
-    return { ...result, ok: true };
+    sendOneDriveStatus("Sync"); 
+    return { ...result, ok: true }; 
   } catch (err) { 
-    sendOneDriveStatus("Sync");
+    sendOneDriveStatus("Sync"); 
     return { ok: false, fileName: path.basename(activeExternalOriginalPath || ""), error: err.message }; 
   } finally { 
     manualSaveInProgress = false; 
@@ -879,7 +905,7 @@ ipcMain.on("browser-home", () => { openMicrosoftService("word"); });
 ipcMain.handle("get-onedrive-logs", async () => { 
   return new Promise((resolve) => { 
     exec("journalctl --user-unit=onedrive -n 50 --no-pager 2>/dev/null || cat ~/.config/onedrive/onedrive.log 2>/dev/null", (_err, stdout) => { 
-      resolve(stdout || "[OneDrive Daemon] Running in background.\n[Sync Status] Synchronized."); 
+      resolve(stdout || "[OneDrive Daemon] Running in background.\n[Sync Status] Synchronized with Cloud Storage."); 
     }); 
   }); 
 }); 
@@ -887,7 +913,7 @@ ipcMain.handle("get-onedrive-logs", async () => {
 ipcMain.handle("set-desktop-shortcut", (_event, enable) => { 
   writePreference("desktop_shortcut", enable); 
   const homeDir = app.getPath("home"); 
-  let desktopDir = null;
+  let desktopDir = null; 
 
   try { 
     const userDirsPath = path.join(homeDir, ".config", "user-dirs.dirs"); 
@@ -973,13 +999,13 @@ ipcMain.handle("clear-session-data", async () => {
   if (officeView && officeView.webContents && officeView.webContents.session) { 
     await officeView.webContents.session.clearStorageData(); 
   } 
-  try {
-    const rf = path.join(oneDrive.configDirectory, "refresh_token");
-    if (fs.existsSync(rf)) fs.unlinkSync(rf);
-  } catch (_) {}
+  try { 
+    const rf = path.join(oneDrive.configDirectory, "refresh_token"); 
+    if (fs.existsSync(rf)) fs.unlinkSync(rf); 
+  } catch (_) {} 
 
-  sendToInterface("auth-state-changed", { authenticated: false });
-  updateViewBounds();
+  sendToInterface("auth-state-changed", { authenticated: false }); 
+  updateViewBounds(); 
   return true; 
 }); 
 
@@ -997,9 +1023,9 @@ ipcMain.handle("factory-reset", async () => {
     oneDrive.stopHeartbeat(); 
     oneDrive.destroyBackgroundTray(); 
 
-    if (officeView && officeView.webContents && officeView.webContents.session) {
+    if (officeView && officeView.webContents && officeView.webContents.session) { 
       await officeView.webContents.session.clearStorageData(); 
-    }
+    } 
     await session.defaultSession.clearStorageData(); 
 
     const homeDir = app.getPath("home"); 
@@ -1097,9 +1123,9 @@ Type=Application
   } else if (key === "compact_nav") { 
     currentSidebarWidth = value ? 54 : 230; 
     updateViewBounds(); 
-  } else if (key === "autohide_sidebar") { 
+  } else if (key === "autohide_sidebar") {
     updateViewBounds(); 
-  } 
+  }
 }); 
 
 const hasSingleInstanceLock = app.requestSingleInstanceLock(); 
