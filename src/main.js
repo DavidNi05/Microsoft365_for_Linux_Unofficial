@@ -57,6 +57,10 @@ let closeToTrayEnabled = true;
 let currentSidebarWidth = 230; 
 const TOPBAR_HEIGHT = 55; 
 
+// Controle de Fallback Reativo (auth=1 <-> auth=2)
+let currentActiveServiceKey = "word";
+let authFallbackTriggered = false;
+
 // URL oficial de autorização OAuth 2.0 com escopos para Graph API e OneDrive
 const MS_AUTH_URL = "https://login.microsoftonline.com/common/oauth2/v2.0/authorize?" + 
   "client_id=" + oneDrive.CLIENT_ID + 
@@ -66,18 +70,18 @@ const MS_AUTH_URL = "https://login.microsoftonline.com/common/oauth2/v2.0/author
   "&prompt=select_account" + 
   "&scope=Files.ReadWrite%20Files.ReadWrite.All%20Sites.ReadWrite.All%20User.Read%20offline_access"; 
 
-// Rotas canônicas de alta velocidade otimizadas para contas pessoais (MSA - Live/Outlook)
+// Rotas canônicas padrão (iniciam em auth=1 para contas pessoais)
 const services = { 
-  home: "https://www.office.com/launch/word?auth=2", 
-  word: "https://www.office.com/launch/word?auth=2", 
-  excel: "https://office.live.com/start/Excel.aspx?auth=2", 
-  powerpoint: "https://office.live.com/start/PowerPoint.aspx?auth=2", 
-  onenote: "https://www.onenote.com/notebooks?auth=2", 
+  home: "https://www.office.com/?auth=1", 
+  word: "https://office.live.com/start/Word.aspx?auth=1", 
+  excel: "https://office.live.com/start/Excel.aspx?auth=1", 
+  powerpoint: "https://office.live.com/start/PowerPoint.aspx?auth=1", 
+  onenote: "https://www.onenote.com/notebooks?auth=1", 
   copilot: "https://copilot.microsoft.com/", 
-  onedrive: "https://onedrive.live.com/", 
+  onedrive: "https://onedrive.live.com/?auth=1", 
   outlook: "https://outlook.live.com/mail/", 
   teams: "https://teams.live.com/v2/", 
-  todo: "https://to-do.live.com/tasks/?auth=2", 
+  todo: "https://to-do.live.com/tasks/?auth=1", 
   designer: "https://designer.microsoft.com/", 
   clipchamp: "https://app.clipchamp.com/", 
   help: "https://support.microsoft.com/" 
@@ -97,8 +101,12 @@ const ALLOWED_DOMAINS = [
   "msauth.net", 
   "msftauth.net", 
   "skype.com", 
-  "microsoft365.com",
-  "onenote.com"
+  "microsoft365.com", 
+  "onenote.com",
+  "onedrive.com",
+  "account.microsoft.com",
+  "auth.gfx.ms",
+  "live.net"
 ]; 
 
 function isAllowedUrl(rawUrl) { 
@@ -251,7 +259,6 @@ async function handleAuthRedirect(targetUrl) {
     sendOneDriveStatus("Sync"); 
     await updateProfileAvatar(); 
 
-    // Destrava imediatamente a tela para o modo dashboard
     isAuthenticating = false; 
     sendToInterface("auth-state-changed", { authenticated: true }); 
 
@@ -259,11 +266,10 @@ async function handleAuthRedirect(targetUrl) {
     currentSidebarWidth = prefs.compact_nav ? 54 : 230; 
     scheduleUpdateViewBounds(); 
 
-    // Pré-aquece cookies da sessão persistente
-    try {
-      const mainSession = session.fromPartition("persist:office365");
-      await mainSession.cookies.flushStore();
-    } catch (_) {}
+    try { 
+      const mainSession = session.fromPartition("persist:office365"); 
+      await mainSession.cookies.flushStore(); 
+    } catch (_) {} 
 
     const startApp = prefs.default_app === "last_used" ? "word" : (prefs.default_app || "word"); 
     openMicrosoftService(startApp); 
@@ -298,7 +304,6 @@ function updateViewBounds() {
   const contentWidth = Math.max(1, Math.floor(Number(contentBounds.width) || 0)); 
   const contentHeight = Math.max(1, Math.floor(Number(contentBounds.height) || 0)); 
 
-  // Durante o login inicial, ocupa a janela inteira
   if (!oneDrive.isAuthenticated() || isAuthenticating) { 
     officeView.setBounds({ 
       x: 0, 
@@ -329,9 +334,51 @@ function scheduleUpdateViewBounds() {
   setTimeout(updateViewBounds, 600); 
 } 
 
+// Mecanismo de Fallback Reativo (auth=1 <-> auth=2)
+function checkAndHandleAuthFallback(targetUrl) {
+  if (authFallbackTriggered || !officeView || officeView.webContents.isDestroyed()) return false;
+  if (!targetUrl || typeof targetUrl !== "string") return false;
+
+  const lower = targetUrl.toLowerCase();
+
+  // Erros canônicos de incompatibilidade de Tenant / Tipo de Conta da Microsoft
+  const isTenantMismatch = 
+    lower.includes("aadsts50020") || 
+    lower.includes("aadsts50034") ||
+    (lower.includes("error=access_denied") && lower.includes("login.microsoftonline.com")) ||
+    lower.includes("error=account_selection_required");
+
+  if (isTenantMismatch) {
+    authFallbackTriggered = true;
+    const currentBaseUrl = services[currentActiveServiceKey];
+    if (currentBaseUrl) {
+      let fallbackUrl = null;
+      if (currentBaseUrl.includes("auth=1")) {
+        fallbackUrl = currentBaseUrl.replace("auth=1", "auth=2");
+      } else if (currentBaseUrl.includes("auth=2")) {
+        fallbackUrl = currentBaseUrl.replace("auth=2", "auth=1");
+      }
+
+      if (fallbackUrl) {
+        console.log(`[SSO Fallback] Alternando autenticação reativamente para: ${fallbackUrl}`);
+        setImmediate(() => {
+          if (officeView && !officeView.webContents.isDestroyed()) {
+            officeView.webContents.loadURL(fallbackUrl);
+          }
+        });
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 function openMicrosoftService(service) { 
   if (!officeView || officeView.webContents.isDestroyed()) return; 
   const key = (service || "").toLowerCase(); 
+
+  currentActiveServiceKey = key;
+  authFallbackTriggered = false; // Reseta a trava para a nova navegação
 
   if (key === "credits") { 
     const creditsPath = fs.existsSync(path.join(__dirname, "Credits.html")) 
@@ -518,6 +565,106 @@ function setupGlobalShortcut(enable) {
   } catch(_) {} 
 } 
 
+// Motor de SSO Nativo e Auto-Click com simulação completa de eventos Fluent UI
+function injectAutoSignIn(targetWebContents) { 
+  if (!targetWebContents || targetWebContents.isDestroyed()) return; 
+
+  // Trava de segurança: só atua se a conta já foi conectada no primeiro login
+  if (!oneDrive.isAuthenticated() || isAuthenticating) return;
+
+  targetWebContents.executeJavaScript(`
+    (function() {
+      if (window.__m365AutoSSOActive) return;
+      window.__m365AutoSSOActive = true;
+
+      function dispatchFullClick(el) {
+        if (!el) return;
+        try {
+          ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'].forEach(evtType => {
+            el.dispatchEvent(new MouseEvent(evtType, {
+              view: window,
+              bubbles: true,
+              cancelable: true,
+              buttons: 1
+            }));
+          });
+          if (typeof el.click === 'function') el.click();
+        } catch (_) {}
+      }
+
+      function runSSOCheck() {
+        if (window.__m365AutoClickFired) return false;
+
+        // 1. TELA "ENCONTRAMOS UMA CONTA QUE VOCÊ PODE USAR AQUI" / "ESCOLHA UMA CONTA"
+        const accountTiles = document.querySelectorAll(
+          '[data-test-id="tileItem"], [data-test-id="account-tile"], #tilesHolder .tile, #otherTile, .tile-container .tile, .table-row, [role="listitem"], .account-picker .row'
+        );
+
+        for (const tile of accountTiles) {
+          const text = (tile.innerText || tile.textContent || '').toLowerCase();
+          if ((text.includes('@') || text.includes('entrou') || text.includes('signed in')) && tile.offsetParent !== null) {
+            window.__m365AutoClickFired = true;
+            const targetBtn = tile.closest('[role="button"]') || tile.querySelector('[role="button"], button, a') || tile;
+            dispatchFullClick(targetBtn);
+            return true;
+          }
+        }
+
+        // Fallback para elementos de botão contendo o email ou status de conectado
+        const buttonsWithAccount = document.querySelectorAll('[role="button"], button, .table-row');
+        for (const btn of buttonsWithAccount) {
+          const text = (btn.innerText || btn.textContent || '').toLowerCase();
+          if ((text.includes('entrou') || (text.includes('@') && !text.includes('avançar') && !text.includes('entrar'))) && btn.offsetParent !== null) {
+            window.__m365AutoClickFired = true;
+            dispatchFullClick(btn);
+            return true;
+          }
+        }
+
+        // 2. TELA "PERMANECER CONECTADO?" (KMSI) -> Clica em "Sim"
+        const kmsiBtn = document.querySelector('#idSIButton9, input[id="idSIButton9"], button[id="idSIButton9"]');
+        if (kmsiBtn && kmsiBtn.offsetParent !== null) {
+          window.__m365AutoClickFired = true;
+          dispatchFullClick(kmsiBtn);
+          return true;
+        }
+
+        // 3. LANDING PAGE DO ONEDRIVE (Redirecionamento automático caso caia na vitrine comercial)
+        const currentLoc = window.location.href.toLowerCase();
+        if (currentLoc.includes('microsoft.com') && currentLoc.includes('onedrive') && !currentLoc.includes('onedrive.live.com')) {
+          window.__m365AutoClickFired = true;
+          window.location.href = 'https://onedrive.live.com/?auth=1';
+          return true;
+        }
+
+        // 4. BOTÕES DE ENTRAR GENÉRICOS (Landing pages de produtos)
+        const signinLinks = document.querySelectorAll('a[href*="login.live.com"], a[href*="onedrive.live.com"], a[data-bi-cn="Entrar"], a[data-bi-cn="Sign in"]');
+        for (const el of signinLinks) {
+          if (el.offsetParent !== null) {
+            window.__m365AutoClickFired = true;
+            if (el.href) {
+              window.location.href = el.href;
+            } else {
+              dispatchFullClick(el);
+            }
+            return true;
+          }
+        }
+
+        return false;
+      }
+
+      runSSOCheck();
+
+      // Monitora continuamente transições de páginas sem recarregar o navegador
+      setInterval(() => {
+        window.__m365AutoClickFired = false;
+        runSSOCheck();
+      }, 350);
+    })();
+  `).catch(() => {}); 
+} 
+
 function createOfficeView() { 
   officeView = new WebContentsView({ 
     webPreferences: { 
@@ -538,31 +685,39 @@ function createOfficeView() {
   officeView.webContents.on("did-finish-load", () => { 
     officeView.webContents.executeJavaScript(`
       (function() {
-        // Monitoramento de título de documento
-        if (!window.__m365Watcher) {
-          window.__m365Watcher = true;
-          function pollTitle() {
-            const input = document.querySelector('input[data-automationid="FileNameInput"]') ||
-                          document.querySelector('#Breadcrumb-ItemName') ||
-                          document.querySelector('#fileNameTextBox');
-            if (input && input.value && input.value.trim() && input.value.trim() !== document.title) {
-              document.title = input.value.trim();
-            }
-          }
-          setInterval(pollTitle, 800);
-        }
-
-        // Auto-Sign-In Watcher: se cair em landing page com botão "Entrar", clica automaticamente
-        function autoSignIn() {
-          const btn = document.querySelector('a[href*="login.live.com"], a[href*="login.microsoftonline.com"], a[data-bi-id*="sign-in"], #hero-banner-sign-in-to-office-365-link');
-          if (btn && btn.offsetParent !== null) {
-            btn.click();
+        if (window.__m365TitleWatcher) return;
+        window.__m365TitleWatcher = true;
+        function pollTitle() {
+          const input = document.querySelector('input[data-automationid="FileNameInput"]') ||
+                        document.querySelector('#Breadcrumb-ItemName') ||
+                        document.querySelector('#fileNameTextBox');
+          if (input && input.value && input.value.trim() && input.value.trim() !== document.title) {
+            document.title = input.value.trim();
           }
         }
-        setTimeout(autoSignIn, 80);
-        setTimeout(autoSignIn, 350);
+        setInterval(pollTitle, 800);
       })()
     `).catch(() => {}); 
+
+    injectAutoSignIn(officeView.webContents); 
+  }); 
+
+  officeView.webContents.on("dom-ready", () => { 
+    injectAutoSignIn(officeView.webContents); 
+  }); 
+
+  officeView.webContents.on("did-navigate", (_event, url) => { 
+    if (checkAndHandleAuthFallback(url)) return;
+    injectAutoSignIn(officeView.webContents); 
+  }); 
+
+  officeView.webContents.on("did-navigate-in-page", (_event, url) => { 
+    if (checkAndHandleAuthFallback(url)) return;
+    injectAutoSignIn(officeView.webContents); 
+  }); 
+
+  officeView.webContents.on("did-frame-finish-load", () => { 
+    injectAutoSignIn(officeView.webContents); 
   }); 
 
   officeView.webContents.setWindowOpenHandler(({ url }) => { 
@@ -590,7 +745,12 @@ function createOfficeView() {
     if (isOAuthCodeRedirect(url)) { 
       event.preventDefault(); 
       handleAuthRedirect(url); 
+      return;
     } 
+    if (checkAndHandleAuthFallback(url)) {
+      event.preventDefault();
+      return;
+    }
   }); 
 
   officeView.webContents.on("did-start-loading", () => sendToInterface("browser-loading", true)); 
@@ -777,7 +937,7 @@ ipcMain.handle("show-fluent-toast", (_event, options) => {
     title: options.title || "Settings & Preferences", 
     message: options.message || "Preference updated successfully.", 
     icon: options.icon || "Home.png", 
-    duration: options.duration || 3500 
+    duration: 3500 
   }); 
 }); 
 
@@ -920,8 +1080,8 @@ ipcMain.handle("set-desktop-shortcut", (_event, enable) => {
     if (fs.existsSync(userDirsPath)) { 
       const content = fs.readFileSync(userDirsPath, "utf8"); 
       const match = content.match(/XDG_DESKTOP_DIR="\$HOME\/(.*?)"/); 
-      if (match && match[1]) { 
-        const resolved = path.join(homeDir, match[1]); 
+      if (match && match) { 
+        const resolved = path.join(homeDir, match); 
         if (fs.existsSync(resolved)) desktopDir = resolved; 
       } 
     } 
@@ -1111,6 +1271,8 @@ Exec=flatpak run io.github.DavidNi05.Microsoft365_for_Linux_Unofficial --backgro
 Icon=io.github.DavidNi05.Microsoft365_for_Linux_Unofficial
 Terminal=false
 Type=Application
+Categories=Office;Productivity;
+StartupWMClass=Office 365 Suite (Community Client)
 `; 
       fs.writeFileSync(autostartFile, entry, { mode: 0o755 }); 
     } else { 
@@ -1123,9 +1285,9 @@ Type=Application
   } else if (key === "compact_nav") { 
     currentSidebarWidth = value ? 54 : 230; 
     updateViewBounds(); 
-  } else if (key === "autohide_sidebar") {
+  } else if (key === "autohide_sidebar") { 
     updateViewBounds(); 
-  }
+  } 
 }); 
 
 const hasSingleInstanceLock = app.requestSingleInstanceLock(); 
